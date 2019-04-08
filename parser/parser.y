@@ -52,7 +52,7 @@ pass: passable | pass passable | ;
 passable: COMMENT | ENTER ;
 
 DefinePackage: TPACKAGE VAL ENTER {
-
+	println($2.s)
 };
 
 ImportPackages: ImportPackage {
@@ -72,17 +72,12 @@ STRs: STR {
 };
 
 Defines: Definable | Defines pass Definable | ;
-Definable: DefineTypes | DefineFuncs;
+Definable: DefineType | DefineFunc;
 
-DefineTypes: TTYPE VAL ValType;
+DefineType: TTYPE VAL ValType;
 
-DefineFuncs: DefineFunc {
-
-} | DefineFuncs pass DefineFunc {
-
-};
-DefineFunc: TFUNC obj '(' args ')' rets block {
-
+DefineFunc: TFUNC obj VAL '(' args ')' rets block {
+	println($3.s)
 };
 obj: '(' VAL ValType ')' {
 
@@ -99,11 +94,14 @@ rets: ValType | '(' retlist ')' | ;
 retlist: ValType ',' ValType | retlist ',' ValType;
 block: '{' ENTER stats ENTER '}';
 stats: ';' | stat | stats pass stat;
-stat: VAL '(' STR ')' {
+stat: VAL '(' exprs ')' {
 
 };
 
 ValType: VAL | TSTRUCT '{' '}' | TINTERFACE '{' '}';
+
+exprs: expr | exprs ',' expr | ;
+expr: STR | VAL
 
 %%
 

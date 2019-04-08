@@ -17,7 +17,7 @@ var (
 	pkgName string
 )
 
-func parserFile(m *ir.Module, filename string, info os.FileInfo, workpath string) error {
+func parserFile(m *ir.Module, filename string, info os.FileInfo) error {
 	f, e := os.Open(filename)
 	if e != nil {
 		return e
@@ -34,14 +34,20 @@ func parserFile(m *ir.Module, filename string, info os.FileInfo, workpath string
 func parserDir(root string, workpath string) error {
 	m := ir.NewModule()
 	m.SourceFilename = root
+	filepath.Walk(root, func(p string, info os.FileInfo, err error) error {
+		println(root, p, info.Name())
+		return nil
+	})
 	e := filepath.Walk(root, func(p string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
 		}
+		println(root, info.Name())
 		if info.IsDir() {
-			return parserDir(p, path.Join(workpath, info.Name()))
+			os.MkdirAll(workpath, 0755)
+			return parserDir(path.Join(root, info.Name()), path.Join(workpath, info.Name()))
 		}
-		return parserFile(m, p, info, workpath)
+		return parserFile(m, p, info)
 	})
 	if e != nil {
 		return e
@@ -60,7 +66,9 @@ func Parser(root string, workpath string) error {
 	}
 	m := ir.NewModule()
 	m.SourceFilename = root
-	e = parserFile(m, root, info, path.Join(workpath, info.Name()))
+	os.MkdirAll(workpath, 0755)
+	workpath = path.Join(workpath, info.Name())
+	e = parserFile(m, root, info)
 	if e != nil {
 		return e
 	}
@@ -71,10 +79,14 @@ func main() {
 	var path string
 	path = os.Args[1]
 	// os.MkdirAll("./pkg", 755)
-	Parser(path, "./pkg")
+	e := Parser(path, "./pkg")
+	if e != nil {
+		panic(e)
+	}
 }
 
 func callParse(filename string, lex *Lexer) (b bool) {
+	println(lex.Line(), lex.Column())
 	defer func() {
 		if e := recover(); e != nil {
 			err := errors.New(fmt.Sprint(e))
@@ -86,9 +98,11 @@ func callParse(filename string, lex *Lexer) (b bool) {
 			}
 		}
 	}()
-	if lex != nil {
-		yyParse(lex)
-	}
+	//if lex != nil {
+	/*ret := */
+	yyParse(lex)
+	//}
+	//println("ret =", ret)
 	return false
 }
 
