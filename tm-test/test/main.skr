@@ -1,0 +1,13 @@
+package main
+
+func main() {
+    // var b f64
+    // a := 1
+    b = a
+    // println(b)
+}
+
+func foo() {
+    a = 0
+    b = a
+}

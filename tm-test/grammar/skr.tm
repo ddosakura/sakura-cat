@@ -3,52 +3,109 @@ language llvm(go);
 lang = "llvm"
 package = "github.com/ddosakura/sakura-cat/tm-test/grammar"
 eventBased = true
+reportTokens = [comment, invalid_token]
 eventFields = true
 eventAST = true
 
-# lexer
-
+# ### [ Lexical part ]
 :: lexer
 
-_ascii_letter_upper = /[A-Z]/
-
-_ascii_letter_lower = /[a-z]/
-
-_ascii_letter = /{_ascii_letter_upper}|{_ascii_letter_lower}/
-
-_letter = /{_ascii_letter}|[-$\._]/
-
-_escape_letter = /{_letter}|[\\]/
-
-_decimal_digit = /[0-9]/
-
+_bin_digit = /[0-1]/
+_oct_digit = /[0-7]/
+_dec_digit = /[0-9]/
 _hex_digit = /{_decimal_digit}|[A-Fa-f]/
 
-comment : /[;][^\r\n]*/               (space)
+comment : /[\/\/][^\r\n]*/               (space)
 whitespace : /[\x00 \t\r\n]+/         (space)
 
-num: /{_decimal_digit}+/ {
-    $$ = atoi(l.Text())
+'package': /package/ 1 {
+    // println(l.Text())
 }
-oper: /[+\-*\/]/ {
-    $$ = int(l.Text()[0])
+'func': /func/ 1 {
+    // println(l.Text())
 }
 
-# parser
+# === [ Identifiers ]
+ident: /[a-zA-Z_][a-zA-z_0-9]*/ {
+    // println("ident", l.Text())
+}
+# --- [ Global identifiers ]
+#global_ident: /[A-Z]([a-zA-Z_])*/ {
+#    println("gi", l.Text())
+#}
+# --- [ Local identifiers ]
+#local_ident: /[a-z_]([a-zA-Z_])*/ {
+#    println("li", l.Text())
+#}
+# --- [ Labels ]
+# --- [ Attribute group identifiers ]
+# --- [ Comdat identifiers ]
+# --- [ Metadata identifiers ]
 
+# === [ Integer literals ]
+# === [ Floating-point literals ]
+# === [ String literals ]
+# === [ Types ]
+
+# === Opers etc.
+
+'+': /[+]/
+'-': /[-]/
+'*': /[*]/
+#'/': /[\/]/
+
+',' : /[,]/
+'!' : /[!]/
+'...' : /\.\.\./
+'(' : /[(]/
+')' : /[)]/
+'[' : /[\[]/
+']' : /[\]]/
+'{' : /[{]/
+'}' : /[}]/
+#'*' : /[*]/
+'<' : /[<]/
+'=' : /[=]/
+'>' : /[>]/
+'|' : /[|]/
+
+
+
+num: /{_dec_digit}+/ {
+    // println("num", l.Text())
+}
+#num: /{_dec_digit}+/ {
+#    $$ = atoi(l.Text())
+#}
+#oper: /[+\-*\/]/ {
+#    $$ = int(l.Text()[0])
+#}
+
+
+
+# ### [ Syntax part ]
 :: parser
-%input Stat;
+%input Package;
+
+Package -> Package
+    : 'package' PackageName Func*
+;
+PackageName -> PackageName: ident;
+
+Func -> Func
+    : 'func' FuncName '(' ')' '{' Stat* '}'
+;
+FuncName -> FuncName: ident;
 
 Stat -> Stat
-    : Expr*
+    : VarName '=' Expr
+;
+VarName -> VarName: ident;
+
+Expr -> Expr
+    : Atom
+    | Expr '+' Atom
+    | Expr '-' Atom
 ;
 
-Expr {int} -> Expr
-    : num {
-        fmt.Printf("%v\n", $0)
-    }
-    | num oper num {
-        $$ = operAdd($0, $2)
-        fmt.Printf("%v\n", $$)
-    }
-;
+Atom -> Atom: num | ident;
