@@ -2,7 +2,7 @@ extern main
 global _start
 _start:
     call main       ; define i32 @main()
-	mov	ebx, eax
+	mov	ebx, eax    ; error_code
 	mov	eax, 1		; sys_exit
 	int	0x80
 
