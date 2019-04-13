@@ -1,13 +1,15 @@
-package main
+package test
 
 func main() {
+    foo()
     // var b f64
     // a := 1
-    b = a
+    // b = a
     // println(b)
 }
 
 func foo() {
-    a = 0
-    b = a
+    println("Hello", "World!")
+    // a = 0
+    // b = a
 }
