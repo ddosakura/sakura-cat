@@ -5,11 +5,16 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 
+	"github.com/ddosakura/sakura-cat/tm-test/generater"
 	"github.com/ddosakura/sakura-cat/tm-test/grammar"
 	"github.com/ddosakura/sakura-cat/tm-test/grammar/ast"
 	"github.com/ddosakura/sakura-cat/tm-test/grammar/selector"
+	"github.com/kr/pretty"
+	"github.com/llir/llvm/ir/types"
+	"github.com/llir/llvm/ir/value"
 )
 
 func main1() {
@@ -40,12 +45,74 @@ func main() {
 		}
 		t, e := ast.Parse(info.Name(), string(buf))
 		if e != nil {
-			panic(e)
+			pretty.Println(e)
+			return nil
 		}
 		// pretty.Println(t)
-		tmp(0, t.Root())
+		root := t.Root()
+		tmp(0, root)
+
+		pkgName := root.Child(selector.PackageName).Text()
+		pkg := generater.NewPkg().Name(pkgName)
+
+		funcs := root.Children(selector.Func)
+		fs := make(map[string]*generater.Func)
+		for _, astF := range funcs {
+			tmp := astF.Child(selector.FuncName)
+			fName := tmp.Text()
+			f := pkg.DefineFunc(fName, types.Void)
+			if fs[fName] != nil {
+				l, c := tmp.LineColumn()
+				fmt.Printf("%v:%v:%v: func has be defined\n", p, l, c)
+				return nil
+			}
+			fs[fName] = f
+		}
+		for _, astF := range funcs {
+			fName := astF.Child(selector.FuncName).Text()
+			f := fs[fName]
+			stats := astF.Children(selector.Stat)
+			for _, astS := range stats {
+				stat := astS.Child(selector.Any)
+				switch stat.Type() {
+				case grammar.CallStat:
+					fN := stat.Child(selector.FuncName).Text()
+					// fmt.Println(fN)
+					argList := stat.Child(selector.ArgList)
+					args := make([]value.Value, 0)
+					for argList.IsValid() {
+						exprs := argList.Child(selector.Expr)
+						args = append(args, expr2Value(pkg, exprs))
+						argList = argList.Child(selector.ArgList)
+					}
+					f.CallFunc(fN, args...)
+				default:
+					l, c := stat.LineColumn()
+					fmt.Printf("%v:%v:%v: unknow stat\n", p, l, c)
+					return nil
+				}
+			}
+			f.Block().NewRet(nil)
+		}
+
+		m := pkg.Module()
+		ioutil.WriteFile("test.ll", []byte(m.String()), 0644)
 		return nil
 	})
+}
+
+func unquote(s string) string {
+	a, e := strconv.Unquote(`"` + s + `"`)
+	if e != nil {
+		panic(e)
+	}
+	return a
+}
+
+func expr2Value(p *generater.Pkg, e *ast.Node) value.Value {
+	s := e.Text()
+	s = unquote(s[1 : len(s)-1])
+	return p.GlobalStr(s)
 }
 
 func tmp(dep int, n *ast.Node) {

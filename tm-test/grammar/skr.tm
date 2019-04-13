@@ -53,6 +53,7 @@ ident: /[a-zA-Z_][a-zA-z_0-9]*/ {
 '-': /[-]/
 '*': /[*]/
 #'/': /[\/]/
+':=': /:=/
 
 ',' : /[,]/
 '!' : /[!]/
@@ -81,6 +82,8 @@ num: /{_dec_digit}+/ {
 #    $$ = int(l.Text()[0])
 #}
 
+str: /("([^"\\]|\\.)*")|('([^'\\]|\\.)*')/
+
 
 
 # ### [ Syntax part ]
@@ -98,9 +101,20 @@ Func -> Func
 FuncName -> FuncName: ident;
 
 Stat -> Stat
-    : VarName '=' Expr
+    : AssignStat | CallStat
 ;
 VarName -> VarName: ident;
+AssignStat -> AssignStat
+    : VarName '=' Expr
+    | VarName ':=' Expr
+;
+CallStat -> CallStat
+    : FuncName '(' ArgListopt ')'
+;
+ArgList -> ArgList
+    : Expr
+    | Expr ',' ArgList
+;
 
 Expr -> Expr
     : Atom
@@ -108,4 +122,4 @@ Expr -> Expr
     | Expr '-' Atom
 ;
 
-Atom -> Atom: num | ident;
+Atom -> Atom: str | num | ident;

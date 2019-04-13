@@ -2,3 +2,13 @@ grammar/*
 !grammar/func.go
 !grammar/Makefile
 !grammar/skr.tm
+
+local
+
+*.bc
+*.ll
+*.o
+*.out
+*.s
+*.lst
+*.tmp.asm
