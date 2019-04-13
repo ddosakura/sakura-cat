@@ -4,3 +4,4 @@
 *.out
 *.s
 *.lst
+*.tmp.asm
