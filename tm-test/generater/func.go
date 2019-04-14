@@ -10,10 +10,15 @@ type Func struct {
 	f       *ir.Func
 	b       *ir.Block
 	argsMap map[string]*ir.Param
+
+	// move to block later
+	ValMap map[string]value.Value
 }
 
 func (f *Func) init() {
 	f.b = f.f.NewBlock("")
+
+	f.ValMap = make(map[string]value.Value)
 }
 
 func (f *Func) CallFunc(name string, values ...value.Value) *ir.InstCall {

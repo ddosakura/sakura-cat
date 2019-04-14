@@ -13,6 +13,7 @@ import (
 	"github.com/ddosakura/sakura-cat/tm-test/grammar/ast"
 	"github.com/ddosakura/sakura-cat/tm-test/grammar/selector"
 	"github.com/kr/pretty"
+	"github.com/llir/llvm/ir/constant"
 	"github.com/llir/llvm/ir/types"
 	"github.com/llir/llvm/ir/value"
 )
@@ -81,11 +82,18 @@ func main() {
 					argList := stat.Child(selector.ArgList)
 					args := make([]value.Value, 0)
 					for argList.IsValid() {
-						exprs := argList.Child(selector.Expr)
-						args = append(args, expr2Value(pkg, exprs))
+						expr := argList.Child(selector.Expr)
+						args = append(args, expr2Value(pkg, expr))
 						argList = argList.Child(selector.ArgList)
 					}
 					f.CallFunc(fN, args...)
+				case grammar.AssignStat:
+					vN := stat.Child(selector.VarName).Text()
+					expr := stat.Child(selector.Expr)
+					v, t := parserExpr(expr)
+					val := f.Block().NewAlloca(t)
+					f.Block().NewStore(v, val)
+					f.ValMap[vN] = val
 				default:
 					l, c := stat.LineColumn()
 					fmt.Printf("%v:%v:%v: unknow stat\n", p, l, c)
@@ -113,6 +121,12 @@ func expr2Value(p *generater.Pkg, e *ast.Node) value.Value {
 	s := e.Text()
 	s = unquote(s[1 : len(s)-1])
 	return p.GlobalStr(s)
+}
+
+func parserExpr(e *ast.Node) (value.Value, types.Type) {
+	v, _ := strconv.Atoi(e.Text())
+	t := types.I32
+	return constant.NewInt(t, int64(v)), t
 }
 
 func tmp(dep int, n *ast.Node) {
