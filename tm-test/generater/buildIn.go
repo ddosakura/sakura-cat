@@ -19,8 +19,8 @@ func (f *Func) checkBuildIn(name string, values ...value.Value) (*ir.InstCall, b
 		hasEnter = true
 		fallthrough
 	case "print":
-		initBuildInFunc(f.p, "puts")
-		fn = f.p.funcsMap["puts"]
+		initBuildInFunc(f.p, "print")
+		fn = f.p.funcsMap["print"]
 		var ret *ir.InstCall
 		for i, v := range values {
 			if i > 0 {
@@ -54,5 +54,5 @@ func initBuildInFunc(p *Pkg, name string) {
 		return
 	}
 	p.buildIn[name] = true
-	p.ExternFunc("puts", types.I32, types.I8Ptr, types.I32)
+	p.ExternFunc("print", types.Void, types.I8Ptr, types.I32)
 }

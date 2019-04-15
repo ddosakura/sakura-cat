@@ -11,9 +11,25 @@ test.o: test.bc
 	llc test.bc -o test.o -filetype=obj
 test.out: test.o
 	ld -s -o test.out \
-    lib64/build/syscall.o \
-    lib64/build/io.o \
-    test.o; chmod +x test.out
+	lib64/build/syscall.o \
+	lib64/build/io.o \
+	lib64/build/entry.o \
+	test.o; chmod +x test.out
+test.a.out: test.o
+	ld -s -o test.a.out \
+	test.o \
+	lib64/build/skr.a \
+	lib64/build/entry.o; chmod +x test.out
+#test.so.out: lib64/build/skr.so test.o
+#	ld -s -o test.so.out \
+#	-dynamic-linker lib64/build/skr.so \
+#	test.o \
+#	lib64/build/entry.o; chmod +x test.so.out
 
 clean:
-	rm *.bc *.ll *.o *.out *.s *.lst *.tmp.asm
+	rm *.bc *.ll *.o *.out *.s *.lst *.tmp.asm *.so *.a *.dump
+
+run: test.ll
+	# lli -load path-to-so -entry-function _start test.ll
+	# lli -load lib64/build/io.o -relocation-model=static -entry-function _start test.ll
+	lli -load lib64/build/skr.so test.ll

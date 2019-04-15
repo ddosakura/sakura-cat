@@ -10,7 +10,7 @@ import (
 func main() {
 	m := ir.NewModule()
 
-	puts := m.NewFunc("puts", types.Void,
+	puts := m.NewFunc("_skr_puts", types.Void,
 		ir.NewParam("", types.I8Ptr),
 		ir.NewParam("", types.I32))
 

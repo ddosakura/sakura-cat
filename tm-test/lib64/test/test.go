@@ -20,7 +20,7 @@ func main() {
 	// strPtr.InBounds = true
 	strLen := constant.NewInt(types.I32, int64(len(text)))
 
-	pf := m.NewFunc("print", types.I32,
+	pf := m.NewFunc("print", types.Void,
 		ir.NewParam("", types.I8Ptr),
 		ir.NewParam("", types.I32))
 
