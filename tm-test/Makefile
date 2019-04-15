@@ -1,7 +1,12 @@
 test.ll: main.go
-	go run main.go
-test.bc: test.ll
-	llvm-as test.ll -o test.bc
+	# go run main.go
+	./build.sh
+
+test.o3.ll: test.ll
+	opt -O3 -S -o test.o3.ll test.ll
+
+test.bc: test.o3.ll
+	llvm-as test.o3.ll -o test.bc
 test.o: test.bc
 	llc test.bc -o test.o -filetype=obj
 test.out: test.o

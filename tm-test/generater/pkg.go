@@ -30,6 +30,10 @@ func (p *Pkg) Name(n string) *Pkg {
 	return p
 }
 
+func (p *Pkg) CheckName(n string) bool {
+	return p.m.SourceFilename == n
+}
+
 func (p *Pkg) Module() *ir.Module {
 	return p.m
 }

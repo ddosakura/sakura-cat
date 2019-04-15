@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"path"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -24,7 +25,10 @@ func main1() {
 	l.Init("1+1\n6\n4-2")
 
 	p := &grammar.Parser{}
-	p.Init(func(t grammar.NodeType, offset, endoffset int) {
+	p.Init(func(err grammar.SyntaxError) bool {
+		pretty.Println("lexer", err)
+		return true
+	}, func(t grammar.NodeType, offset, endoffset int) {
 		println(t, offset, endoffset)
 	})
 
@@ -35,41 +39,79 @@ func main1() {
 }
 
 func main() {
-	filepath.Walk("./test", func(p string, info os.FileInfo, err error) error {
+	// SkrBin := os.Getenv("SKRBIN")
+	// SkrCache := os.Getenv("SKRCACHE")
+	SkrPath := os.Getenv("SKRPATH")
+	// SkrMod := os.Getenv("SKRMOD")
+
+	mod := SkrPath + "/test1"
+	bufs := make([]byte, 0)
+	files := make([]string, 0)
+
+	filepath.Walk(mod, func(p string, info os.FileInfo, err error) error {
 		if info.IsDir() {
 			return nil
 		}
-		fmt.Println(p)
+		fmt.Println(p, path.Ext(p))
+		if path.Ext(p) != ".skr" {
+			return nil
+		}
 		buf, e := ioutil.ReadFile(p)
 		if e != nil {
 			panic(e)
 		}
-		t, e := ast.Parse(info.Name(), string(buf))
-		if e != nil {
-			pretty.Println(e)
-			return nil
+		bufs = append(bufs, buf...)
+		files = append(files, info.Name())
+		return nil
+	})
+
+	t, e := ast.Parse(mod, string(bufs), func(err grammar.SyntaxError) bool {
+		pretty.Println("parser", err)
+		return true
+	})
+	if e != nil {
+		pretty.Println(e)
+		return
+	}
+	// pretty.Println(t)
+	root := t.Root()
+	tmp(0, root)
+
+	pkgs := root.Children(selector.Package)
+	pkg := generater.NewPkg()
+	fs := make(map[string]*generater.Func)
+	for i, pkgRoot := range pkgs {
+		firstLen, _ := pkgRoot.LineColumn()
+		firstLen--
+		p := mod + "/" + files[i]
+
+		tmp := pkgRoot.Child(selector.PackageName)
+		pkgName := tmp.Text()
+		if i == 0 {
+			pkg.Name(pkgName)
+		} else {
+			ok := pkg.CheckName(pkgName)
+			if !ok {
+				_, c := tmp.LineColumn()
+				fmt.Printf("%v:1:%v: package name should be same\n", p, c)
+				return
+			}
 		}
-		// pretty.Println(t)
-		root := t.Root()
-		tmp(0, root)
 
-		pkgName := root.Child(selector.PackageName).Text()
-		pkg := generater.NewPkg().Name(pkgName)
-
-		funcs := root.Children(selector.Func)
-		fs := make(map[string]*generater.Func)
-		for _, astF := range funcs {
+		defines := pkgRoot.Children(selector.Define)
+		for _, astD := range defines {
+			astF := astD.Child(selector.Func)
 			tmp := astF.Child(selector.FuncName)
 			fName := tmp.Text()
 			f := pkg.DefineFunc(fName, types.Void)
 			if fs[fName] != nil {
 				l, c := tmp.LineColumn()
-				fmt.Printf("%v:%v:%v: func has be defined\n", p, l, c)
-				return nil
+				fmt.Printf("%v:%v:%v: func has be defined\n", p, l-firstLen, c)
 			}
 			fs[fName] = f
 		}
-		for _, astF := range funcs {
+		for _, astD := range defines {
+			astF := astD.Child(selector.Func)
 			fName := astF.Child(selector.FuncName).Text()
 			f := fs[fName]
 			stats := astF.Children(selector.Stat)
@@ -79,12 +121,10 @@ func main() {
 				case grammar.CallStat:
 					fN := stat.Child(selector.FuncName).Text()
 					// fmt.Println(fN)
-					argList := stat.Child(selector.ArgList)
+					argList := stat.Children(selector.Expr)
 					args := make([]value.Value, 0)
-					for argList.IsValid() {
-						expr := argList.Child(selector.Expr)
+					for _, expr := range argList {
 						args = append(args, expr2Value(pkg, expr))
-						argList = argList.Child(selector.ArgList)
 					}
 					f.CallFunc(fN, args...)
 				case grammar.AssignStat:
@@ -96,17 +136,17 @@ func main() {
 					f.ValMap[vN] = val
 				default:
 					l, c := stat.LineColumn()
-					fmt.Printf("%v:%v:%v: unknow stat\n", p, l, c)
-					return nil
+					fmt.Printf("%v:%v:%v: unknow stat\n", p, l-firstLen, c)
+					return
 				}
 			}
 			f.Block().NewRet(nil)
 		}
+	}
 
-		m := pkg.Module()
-		ioutil.WriteFile("test.ll", []byte(m.String()), 0644)
-		return nil
-	})
+	m := pkg.Module()
+	// println(m.String())
+	ioutil.WriteFile("test.ll", []byte(m.String()), 0644)
 }
 
 func unquote(s string) string {

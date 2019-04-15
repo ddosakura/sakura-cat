@@ -1,0 +1,12 @@
+package test1
+
+/*
+ * The Main Func
+ */
+func main() {
+    foo()
+    // var b f64
+    a := 1;
+    b = false
+    // println(b)
+}

@@ -4,6 +4,7 @@ grammar/*
 !grammar/skr.tm
 
 local
+/build.sh
 
 *.bc
 *.ll

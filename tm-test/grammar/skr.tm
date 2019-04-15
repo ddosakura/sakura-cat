@@ -18,11 +18,29 @@ _hex_digit = /{_decimal_digit}|[A-Fa-f]/
 comment : /[\/\/][^\r\n]*/               (space)
 whitespace : /[\x00 \t\r\n]+/         (space)
 
+%x inComment;
+commentStart: /\/\*/ 1 (space)    { l.State = StateInComment }
+<inComment> {
+  commentText: /\*|[^*]+/  (space)
+  commentEnd: /\*\// (space)   { l.State = StateInitial }
+  eoi: /{eoi}/     { panic(EoiInCommit); l.State = StateInitial }
+}
+
 'package': /package/ 1 {
     // println(l.Text())
 }
 'func': /func/ 1 {
     // println(l.Text())
+}
+
+BOOL {bool}:
+'true' {bool}: /true/ 1 {
+    token = BOOL
+    $$ = true
+}
+'false' {bool}: /false/ 1 {
+    token = BOOL
+    $$ = false
 }
 
 # === [ Identifiers ]
@@ -52,12 +70,15 @@ ident: /[a-zA-Z_][a-zA-z_0-9]*/ {
 '+': /[+]/
 '-': /[-]/
 '*': /[*]/
-#'/': /[\/]/
+'/': /[\/]/ -1
 ':=': /:=/
+
+'.': /\./
+invalid_token: /\.\./
+'...': /\.\.\./
 
 ',' : /[,]/
 '!' : /[!]/
-'...' : /\.\.\./
 '(' : /[(]/
 ')' : /[)]/
 '[' : /[\[]/
@@ -69,7 +90,7 @@ ident: /[a-zA-Z_][a-zA-z_0-9]*/ {
 '=' : /[=]/
 '>' : /[>]/
 '|' : /[|]/
-
+';' : /[;]/
 
 
 num: /{_dec_digit}+/ {
@@ -84,24 +105,30 @@ num: /{_dec_digit}+/ {
 
 str: /("([^"\\]|\\.)*")|('([^'\\]|\\.)*')/
 
-
+error:
 
 # ### [ Syntax part ]
 :: parser
-%input Package;
+%input Module;
+
+Module -> Module: Package*;
 
 Package -> Package
-    : 'package' PackageName Func*
+    : 'package' PackageName Define*
 ;
 PackageName -> PackageName: ident;
 
+Define -> Define
+    : Func | error
+;
+
 Func -> Func
-    : 'func' FuncName '(' ')' '{' Stat* '}'
+    : 'func' FuncName '(' ')' '{' (Stat ';'?)* '}'
 ;
 FuncName -> FuncName: ident;
 
 Stat -> Stat
-    : AssignStat | CallStat
+    : AssignStat | CallStat | error
 ;
 VarName -> VarName: ident;
 AssignStat -> AssignStat
@@ -109,11 +136,7 @@ AssignStat -> AssignStat
     | VarName ':=' Expr
 ;
 CallStat -> CallStat
-    : FuncName '(' ArgListopt ')'
-;
-ArgList -> ArgList
-    : Expr
-    | Expr ',' ArgList
+    : FuncName '(' (Expr separator ',')* ')'
 ;
 
 Expr -> Expr
@@ -122,4 +145,4 @@ Expr -> Expr
     | Expr '-' Atom
 ;
 
-Atom -> Atom: str | num | ident;
+Atom -> Atom: str | num | BOOL | ident;
