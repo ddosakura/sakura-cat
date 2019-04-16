@@ -1,0 +1,25 @@
+{
+    "name": "skrlang-support",
+    "displayName": "SkrLang Support",
+    "description": "Skr Language Support",
+    "version": "0.0.1",
+    "engines": {
+        "vscode": "^1.33.0"
+    },
+    "categories": [
+        "Programming Languages"
+    ],
+    "contributes": {
+        "languages": [{
+            "id": "skr",
+            "aliases": ["SkrLang", "skr"],
+            "extensions": [".skr"],
+            "configuration": "./language-configuration.json"
+        }],
+        "grammars": [{
+            "language": "skr",
+            "scopeName": "source.skr",
+            "path": "./syntaxes/skr.tmLanguage.json"
+        }]
+    }
+}

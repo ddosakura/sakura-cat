@@ -1,0 +1,188 @@
+{
+	"$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+	"name": "SkrLang",
+	"patterns": [
+		{
+			"match": "^(#!.*)$",
+			"name": "meta.preprocessor.script.skr"
+		},
+		{
+			"include": "#keywords"
+		},
+		{
+			"include": "#comments"
+		},
+		{
+			"include": "#strings"
+		},
+		{
+			"include": "#punctuation"
+		},
+		{
+			"include": "#annotations"
+		},
+		{
+			"include": "#constants-and-special-vars"
+		}
+	],
+	"repository": {
+		"keywords": {
+			"patterns": [
+				{
+					"name": "keyword.control.skr",
+					"match": "\\b(if|while|for|return)\\b"
+				},
+				{
+					"name": "keyword.declaration.skr",
+					"match": "(?<!\\$)\\b(package|func)\\b(?!\\$)"
+				},
+				{
+					"name": "keyword.operator.assignment.arithmetic.skr",
+					"match": "(([+*/%-]|\\~)=)"
+				}
+			]
+		},
+		"comments": {
+			"patterns": [
+				{
+					"captures": {
+						"0": {
+							"name": "punctuation.definition.comment.skr"
+						}
+					},
+					"match": "/\\*\\*/",
+					"name": "comment.block.empty.skr"
+				},
+				{
+					"include": "#comments-doc-oldschool"
+				},
+				{
+					"include": "#comments-doc"
+				},
+				{
+					"include": "#comments-inline"
+				}
+			]
+		},
+		"comments-doc-oldschool": {
+			"patterns": [
+				{
+					"begin": "/\\*\\*",
+					"end": "\\*/",
+					"name": "comment.block.documentation.skr",
+					"patterns": [
+						{
+							"include": "#comments-doc-oldschool"
+						},
+						{
+							"include": "#comments-inline"
+						},
+						{
+							"include": "#skrdoc"
+						}
+					]
+				}
+			]
+		},
+		"comments-doc": {
+			"patterns": [
+				{
+					"begin": "///",
+					"while": "^///",
+					"patterns": [
+						{
+							"include": "#skrdoc"
+						}
+					],
+					"name": "comment.block.documentation.skr"
+				}
+			]
+		},
+		"comments-inline": {
+			"patterns": [
+				{
+					"begin": "/\\*",
+					"end": "\\*/",
+					"name": "comment.block.skr",
+					"patterns": [
+						{
+							"include": "#comments-inline"
+						}
+					]
+				},
+				{
+					"captures": {
+						"1": {
+							"name": "comment.line.double-slash.skr"
+						}
+					},
+					"match": "((//).*)$"
+				}
+			]
+		},
+		"strings": {
+			"name": "string.quoted.double.skr",
+			"begin": "\"",
+			"end": "\"",
+			"patterns": [
+				{
+					"name": "constant.character.escape.skr",
+					"match": "\\\\."
+				}
+			]
+		},
+		"punctuation": {
+			"patterns": [
+				{
+					"match": ",",
+					"name": "punctuation.comma.skr"
+				},
+				{
+					"match": ";",
+					"name": "punctuation.terminator.skr"
+				},
+				{
+					"match": "\\.",
+					"name": "punctuation.dot.skr"
+				}
+			]
+		},
+		"annotations": {
+			"patterns": [
+				{
+					"match": "@[a-zA-Z]+",
+					"name": "storage.type.annotation.skr"
+				}
+			]
+		},
+		"constants-and-special-vars": {
+			"patterns": [
+				{
+					"match": "(?<!\\$)\\b(true|false|null|nil)\\b(?!\\$)",
+					"name": "constant.language.skr"
+				},
+				{
+					"match": "(?<!\\$)\\b(this|super)\\b(?!\\$)",
+					"name": "variable.language.skr"
+				},
+				{
+					"match": "(?<!\\$)\\b((0(x|X)[0-9a-fA-F]*)|(([0-9]+\\.?[0-9]*)|(\\.[0-9]+))((e|E)(\\+|-)?[0-9]+)?)\\b(?!\\$)",
+					"name": "constant.numeric.skr"
+				},
+				{
+					"match": "(?<![a-zA-Z0-9_$])[_$]*[A-Z][a-zA-Z0-9_$]*",
+					"name": "support.class.skr"
+				},
+				{
+					"match": "([_$]*[a-z][a-zA-Z0-9_$]*)(<|\\(|\\s+=>)",
+					"captures": {
+						"1": {
+							"name": "entity.name.function.skr"
+						}
+					}
+				}
+			]
+		}
+	},
+	"scopeName": "source.skr"
+}
