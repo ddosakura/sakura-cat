@@ -10,7 +10,6 @@ eventAST = true
 #cancellable = true
 #recursiveLookaheads = true
 reportTokens = [MultiLineComment, SingleLineComment, invalid_token]
-#reportTokens = [MultiLineComment, SingleLineComment, invalid_token, NoSubstitutionTemplate, TemplateHead, TemplateMiddle, TemplateTail]
 #extraTypes = ["InsertedSemicolon"]
 
 
@@ -50,30 +49,19 @@ reportTokens = [MultiLineComment, SingleLineComment, invalid_token]
 # ### [ Lexical part ]
 :: lexer
 
-#%s initial, div, template, templateDiv, templateExpr, templateExprDiv;
 %s initial, div;
 <*> eoi: /{eoi}/
 
 invalid_token:
 error:
 
-#whitespace : /[\x00 \t\r\n]+/ (space)
-#<initial, div, template, templateDiv, templateExpr, templateExprDiv> {
-#    WhiteSpace: /[\t\x0b\x0c\x20\xa0\ufeff\p{Zs}]/ (space)
-#}
+# Whitespace
 <initial, div> {
     WhiteSpace: /[\t\x0b\x0c\x20\xa0\ufeff\p{Zs}]/ (space)
 }
 WhiteSpace: /[\n\r\u2028\u2029]|\r\n/ (space)
 
-#comment : /[\/\/][^\r\n]*/               (space)
-#%x inComment;
-#commentStart: /\/\*/ 1 (space)    { l.State = StateInComment }
-#<inComment> {
-#  commentText: /\*|[^*]+/  (space)
-#  commentEnd: /\*\// (space)   { l.State = StateInitial }
-#  eoi: /{eoi}/     { panic(EoiInCommit); l.State = StateInitial }
-#}
+# Comment
 commentChars = /([^*]|\*+[^*\/])*\**/
 MultiLineComment:  /\/\*{commentChars}\*\//     (space)
 # Note: the following rule disables backtracking for incomplete multiline comments, which
@@ -83,21 +71,13 @@ SingleLineComment: /\/\/[^\n\r\u2028\u2029]*/   (space)
 # Shebang.
 SingleLineComment: /#![^\n\r\u2028\u2029]*/   (space)
 
-#bin = /[0-1]/
-#oct = /[0-7]/
-#dec = /[0-9]/
+# Identifier
 hex = /[0-9A-Fa-f]/
-
-#ident: /[a-zA-Z_][a-zA-z_0-9]*/ {
-#    // println("ident", l.Text())
-#}
-# Note: see http://unicode.org/reports/tr31/
 IDStart = /\p{Lu}|\p{Ll}|\p{Lt}|\p{Lm}|\p{Lo}|\p{Nl}/
 IDContinue = /{IDStart}|\p{Mn}|\p{Mc}|\p{Nd}|\p{Pc}/
 JoinControl = /\u200c|\u200d/
 unicodeEscapeSequence = /u(\{{hex}+\}|{hex}{4})/
 brokenEscapeSequence = /\\(u({hex}{0,3}|\{{hex}*))?/
-#identifierStart = /{IDStart}|$|_|\\{unicodeEscapeSequence}/
 identifierStart = /{IDStart}|_|\\{unicodeEscapeSequence}/
 identifierPart =  /{identifierStart}|{IDContinue}|{JoinControl}/
 Identifier: /{identifierStart}{identifierPart}*/    (class)
@@ -141,18 +121,11 @@ invalid_token: /({identifierStart}{identifierPart}*)?{brokenEscapeSequence}/
 'try':        /try/
 'typeof':     /typeof/
 'var':        /var/
-'void':       /void/
 'while':      /while/
 'with':       /with/
 'yield':      /yield/
 # Future-reserved.
 'enum':  /enum/
-# Literals.
-NULL:
-'null': /null/ { token = NULL }
-'nil': /nil/ { token = NULL }
-'true':  /true/
-'false': /false/
 # Soft (contextual) keywords.
 'as':     /as/
 'async':  /async/
@@ -169,10 +142,6 @@ NULL:
 'private':      /private/
 'protected':    /protected/
 'public':       /public/
-# etc. II
-'any':     /any/
-'boolean': /boolean/
-'number':  /number/
 # etc. III
 'abstract':    /abstract/
 'constructor': /constructor/
@@ -209,18 +178,6 @@ NULL:
 'complex64': /complex64/
 'complex128': /complex128/
 
-#BOOL {bool}:
-#'true' {bool}: /true/ 1 {
-#    token = BOOL
-#    $$ = true
-#    println("bool T")
-#}
-#'false' {bool}: /false/ 1 {
-#    token = BOOL
-#    $$ = false
-#    println("bool F")
-#}
-
 # Punctuation
 ':=': /:=/
 '{': /\{/
@@ -230,7 +187,6 @@ NULL:
 '[': /\[/
 ']': /\]/
 '.': /\./
-#invalid_token: /\.\./
 '..': /\.\./
 '...': /\.\.\./
 ';': /;/
@@ -279,14 +235,18 @@ NULL:
 '**': /\*\*/
 '**=': /\*\*=/
 
+# Literals.
+NULL:
+'null': /null/ { token = NULL }
+'nil': /nil/ { token = NULL }
+'true':  /true/
+'false': /false/
+
 # Num
 #bin = /[0-1]/
 #oct = /[0-7]/
 #dec = /[0-9]/
 #hex = /[0-9A-Fa-f]/
-#num: /{dec}+/ {
-#    // println("num", l.Text())
-#}
 int = /(0+([0-7]*[89][0-9]*)?|[1-9][0-9]*)/ # 
 frac = /\.[0-9]*/
 exp = /[eE][+-]?[0-9]+/
@@ -302,11 +262,7 @@ invalid_token: /{int}{frac}?{bad_exp}/
 invalid_token: /\.[0-9]+{bad_exp}/
 
 # Str
-#str: /("([^"\\]|\\.)*")|('([^'\\]|\\.)*')/ {
-#	s := l.Text()
-#	s = unquote(s[1 : len(s)-1])
-#    // println("str", s)
-#}
+# s = unquote(s[1 : len(s)-1])
 escape = /\\([^1-9xu\n\r\u2028\u2029]|x{hex}{2}|{unicodeEscapeSequence})/
 lineCont = /\\([\n\r\u2028\u2029]|\r\n)/
 dsChar = /[^\n\r"\\\u2028\u2029]|{escape}|{lineCont}/
@@ -314,29 +270,12 @@ ssChar = /[^\n\r'\\\u2028\u2029]|{escape}|{lineCont}/
 # TODO check \0 is valid if [lookahead != DecimalDigit]
 StringLiteral: /"{dsChar}*"/
 StringLiteral: /'{ssChar}*'/
-
-#tplChars = /([^\$`\\]|\$*{escape}|\$*{lineCont}|\$+[^\$\{`\\])*\$*/
-#<initial, div, templateExpr, templateExprDiv> '}': /\}/
-#<initial, div, template, templateDiv, templateExpr, templateExprDiv> {
-#    NoSubstitutionTemplate: /`{tplChars}`/
-#    TemplateHead: /`{tplChars}\$\{/
-#}
-#<template, templateDiv> {
-#    TemplateMiddle: /\}{tplChars}\$\{/
-#    TemplateTail: /\}{tplChars}`/
-#}
-#<div, templateDiv, templateExprDiv> {
-#    '/': /\//
-#    '/=': /\/=/
-#}
-
 # 按Go标准，反引号内无法转义反引号
 MultiLineChars = /([^`]|{escape}|{lineCont})*/
 StringLiteral: /`{MultiLineChars}`/
 
 # For precedence resolution.
 resolveShift:
-#unaryMinus:
 
 
 
@@ -352,7 +291,6 @@ resolveShift:
 #   StringLiteral
 #
 #   resolveShift
-#   unaryMinus
 
 # ### [ Syntax part ]
 :: parser
@@ -364,11 +302,6 @@ resolveShift:
 
 %flag In;
 
-%flag WithoutNew = false;
-%flag WithoutPredefinedTypes = false;
-%flag WithoutImplements = false;
-
-%lookahead flag NoLet = false;
 %lookahead flag NoLetSq = false;
 %lookahead flag NoObjLiteral = false;
 %lookahead flag NoFuncClass = false;
@@ -379,9 +312,125 @@ SyntaxError -> SyntaxProblem
     : error
 ;
 
-# === [ Skr Types ]
+# === [ Package & Module ]
 
-SkrType -> SkrType
+Package -> Package
+    #: SingleLineComment* 'package' PackageName Define*
+    : 'package' PackageName PackageBody
+;
+PackageName -> PackageName: Identifier;
+PackageBody
+    : ImportList ModuleItemList
+;
+
+%interface ModuleItem;
+ModuleItemList
+    : ModuleItem
+    | ModuleItemList ModuleItem
+;
+ModuleItem -> ModuleItem /* interface */
+    :StatementListItem
+;
+
+# --- [ Import Declaration ]
+
+ImportList
+    : ImportDeclaration*
+;
+
+ImportDeclaration -> ImportDeclaration
+    : 'import' ModuleSpecifier
+    | 'import' '(' ModuleSpecifier+ ')'
+;
+
+ModuleSpecifier -> ModuleSpecifier
+    : BindingIdentifier? StringLiteral
+;
+
+# === [ Literal ]
+
+# --- [ 一般字面量 ]
+Literal -> Literal
+    : NULL -> NullLiteral
+    | 'true' -> BoolLiteral
+    | 'false' -> BoolLiteral
+    | NumericLiteral -> NumLiteral
+    | StringLiteral -> StrLiteral
+;
+
+# --- [ 数组字面量 ]
+ArrayLiteral -> ArrayLiteral
+    : '[' Elisionopt ']'
+    | '[' list=ElementList ']'
+    | '[' list=ElementList ',' Elisionopt ']'
+;
+
+ElementList
+    : Elisionopt AssignmentExpression<+In>
+    | Elisionopt SpreadElement
+    | ElementList ',' Elisionopt AssignmentExpression<+In>
+    | ElementList ',' Elisionopt SpreadElement
+;
+
+Elision
+    : ','
+    | Elision ','
+;
+
+SpreadElement -> Expression /* interface */
+    : '...' AssignmentExpression<+In> -> SpreadElement
+;
+
+# --- [ 对象字面量 ]
+ObjectLiteral -> ObjectLiteral
+    : '{' '}'
+    | '{' .recoveryScope PropertyDefinitionList '}'
+    | '{' .recoveryScope PropertyDefinitionList ',' '}'
+;
+
+PropertyDefinitionList
+    : PropertyDefinition
+    | PropertyDefinitionList ',' PropertyDefinition
+;
+
+%interface PropertyName, PropertyDefinition;
+
+PropertyDefinition -> PropertyDefinition /* interface */
+    : IdentifierReference -> ShorthandProperty
+    | Modifiers? PropertyName ':' value=AssignmentExpression<+In> -> Property
+    | Modifiers? MethodDefinition -> ObjectMethod
+    | CoverInitializedName -> SyntaxProblem
+    | SyntaxError
+    | '...' AssignmentExpression<+In> -> SpreadProperty
+;
+
+PropertyName -> PropertyName /* interface */
+    : LiteralPropertyName
+    | ComputedPropertyName
+;
+
+LiteralPropertyName -> LiteralPropertyName
+    : IdentifierNameDecl
+    | StringLiteral
+    | NumericLiteral
+;
+
+ComputedPropertyName -> ComputedPropertyName
+    : '[' AssignmentExpression<+In> ']'
+;
+
+CoverInitializedName
+    : IdentifierReference Initializer<+In>
+;
+
+Initializer<In> -> Initializer
+    : '=' AssignmentExpression
+;
+
+# === [ Types ]
+%interface SkrType;
+
+PredefinedType -> PredefinedType
     : 'void'
     | 'symbol'
     | 'string'
@@ -406,46 +455,15 @@ SkrType -> SkrType
     | 'complex'
     | 'complex64'
     | 'complex128'
-
-    | CustomType
-;
-CustomType:
-    Identifier
 ;
 
 # === [ Identifier ]
 
-# 标识符名
-IdentifierName<WithoutNew>
+IdentifierName
     : Identifier
-    # Keywords
-    | [!WithoutNew] 'new'
-    | 'await'
-    | 'break'      | 'do'         | 'in'         | 'typeof'
-    | 'case'       | 'else'       | 'instanceof' | 'var'
-    | 'catch'      | 'export'     | 'void'
-    | 'class'      | 'extends'    | 'return'     | 'while'
-    | 'const'      | 'finally'    | 'super'      | 'with'
-    | 'continue'   | 'for'        | 'switch'     | 'yield'
-    | 'debugger'   | 'func'       | 'this'
-    | 'default'    | 'if'         | 'throw'
-    | 'delete'     | 'import'     | 'try'
-    # Future-reserved.
-    | 'enum'
-    # NullLiteral | BooleanLiteral
-    | NULL | 'true' | 'false'
-    # Soft keywords
-    | 'as'     | 'from' | 'get' | 'let' | 'of' | 'set' | 'static'
-    | 'target' | 'async'
-    # Typescript.
-    | 'implements' | 'interface'   | 'private' | 'protected' | 'public'
-    | 'any'        | 'boolean'     | 'number'  | 'string'    | 'symbol'
-    | 'abstract'   | 'constructor' | 'declare' | 'is'        | 'module'
-    | 'namespace'  | 'require'     | 'type'
-    | 'readonly'   | 'keyof'
 ;
 
-IdentifierNameDecl<WithoutNew>
+IdentifierNameDecl
     : IdentifierName -> BindingIdentifier
 ;
 
@@ -453,50 +471,17 @@ IdentifierNameRef
     : IdentifierName -> IdentifierReference
 ;
 
-IdentifierReference<WithoutPredefinedTypes> -> IdentifierReference
+IdentifierReference -> IdentifierReference
     : Identifier
-    | 'yield'
-    | 'await'
-    | [!NoLet] 'let'
-    | 'async'
-    # Soft keywords
-    | 'as' | 'from' | 'get' | 'of' | 'set' | 'static' | 'target'
-    # Typescript.
-    | 'implements' | 'interface' | 'private' | 'protected' | 'public'
-    | [!WithoutPredefinedTypes] ('any' | 'boolean' | 'number' | 'string' | 'symbol')
-    | 'abstract' | 'constructor' | 'declare' | 'is' | 'module' | 'namespace' | 'require' | 'type'
-    | 'readonly' | [!WithoutPredefinedTypes] 'keyof'
 ;
 
-BindingIdentifier<WithoutImplements> -> BindingIdentifier
+BindingIdentifier -> BindingIdentifier
     : Identifier
-    # These are allowed or not, depending on the context.
-    | 'yield' | 'await'
-    # Soft keywords
-    | 'as' | 'from' | 'get' | 'let' | 'of' | 'set' | 'static'
-    | 'target' |'async'
-    # Typescript.
-    | [!WithoutImplements] 'implements'
-    | 'interface' | 'private' | 'protected' | 'public'
-    | 'any' | 'boolean' | 'number' | 'string' | 'symbol'
-    | 'abstract' | 'constructor' | 'declare' | 'is' | 'module'
-    | 'namespace' | 'require' | 'type'
-    | 'readonly' | 'keyof'
 ;
 
+# 标签标识符
 LabelIdentifier -> LabelIdentifier
     : Identifier
-    # These are allowed or not, depending on the context.
-    | 'yield' | 'await'
-    # Soft keywords
-    | 'as' | 'from' | 'get' | 'let' | 'of' | 'set' | 'static'
-    | 'target' | 'async'
-    # Typescript.
-    | 'implements' | 'interface' | 'private' | 'protected' | 'public'
-    | 'any' | 'boolean' | 'number' | 'string' | 'symbol'
-    | 'abstract' | 'constructor' | 'declare' | 'is' | 'module'
-    | 'namespace' | 'require' | 'type'
-    | 'readonly' | 'keyof'
 ;
 
 # === [ Expression ]
@@ -525,87 +510,9 @@ Parenthesized -> Parenthesized
     | '(' SyntaxError ')'
 ;
 
-# 字面量
-Literal -> Literal
-    : NULL -> NullLiteral
-    | 'true' -> BoolLiteral
-    | 'false' -> BoolLiteral
-    | NumericLiteral -> NumLiteral
-    | StringLiteral -> StrLiteral
-;
-
-# 数组字面量
-ArrayLiteral -> ArrayLiteral
-    : '[' Elisionopt ']'
-    | '[' list=ElementList ']'
-    | '[' list=ElementList ',' Elisionopt ']'
-;
-
-ElementList
-    : Elisionopt AssignmentExpression<+In>
-    | Elisionopt SpreadElement
-    | ElementList ',' Elisionopt AssignmentExpression<+In>
-    | ElementList ',' Elisionopt SpreadElement
-;
-
-Elision
-    : ','
-    | Elision ','
-;
-
-SpreadElement -> Expression /* interface */
-    : '...' AssignmentExpression<+In> -> SpreadElement
-;
-
-# 对象字面量
-ObjectLiteral -> ObjectLiteral
-    : '{' '}'
-    | '{' .recoveryScope PropertyDefinitionList '}'
-    | '{' .recoveryScope PropertyDefinitionList ',' '}'
-;
-
-PropertyDefinitionList
-    : PropertyDefinition
-    | PropertyDefinitionList ',' PropertyDefinition
-;
-
-%interface PropertyName, PropertyDefinition;
-
-PropertyDefinition -> PropertyDefinition /* interface */
-    : IdentifierReference -> ShorthandProperty
-    | Modifiers? PropertyName ':' value=AssignmentExpression<+In> -> Property
-    | Modifiers? MethodDefinition -> ObjectMethod
-    | CoverInitializedName -> SyntaxProblem
-    | SyntaxError
-    | '...' AssignmentExpression<+In> -> SpreadProperty
-;
-
-PropertyName<WithoutNew> -> PropertyName /* interface */
-    : LiteralPropertyName
-    | ComputedPropertyName
-;
-
-LiteralPropertyName<WithoutNew> -> LiteralPropertyName
-    : IdentifierNameDecl
-    | StringLiteral
-    | NumericLiteral
-;
-
-ComputedPropertyName -> ComputedPropertyName
-    : '[' AssignmentExpression<+In> ']'
-;
-
-CoverInitializedName
-    : IdentifierReference Initializer<+In>
-;
-
-Initializer<In> -> Initializer
-    : '=' AssignmentExpression
-;
-
 MemberExpression<flag NoLetOnly = false> -> Expression /* interface */
     : [!NoLetOnly && !StartWithLet] PrimaryExpression
-    | [NoLetOnly && !StartWithLet] PrimaryExpression<+NoLet>
+    | [NoLetOnly && !StartWithLet] PrimaryExpression
     | [StartWithLet && !NoLetOnly] 'let' -> IdentifierReference
     | [StartWithLet] expr=MemberExpression<+NoLetOnly> '[' index=Expression<+In> ']' -> IndexAccess
     | [!StartWithLet] expr=MemberExpression<NoLetOnly: NoLetSq> '[' index=Expression<+In> ']' -> IndexAccess
@@ -885,7 +792,7 @@ BindingElisionElement :
 
 PropertyPattern -> PropertyPattern /* interface */:
     SingleNameBinding
-  | PropertyName ':' ElementPattern                   -> PropertyBinding
+  | PropertyName ':' ElementPattern -> PropertyBinding
   | SyntaxError
 ;
 
@@ -919,7 +826,7 @@ IfStatement -> IfStatement :
 IterationStatement -> Statement /* interface */:
     'do' Statement 'while' '(' Expression<+In> ')' ';' .doWhile       -> DoWhileStatement
   | 'while' '(' Expression<+In> ')' Statement                         -> WhileStatement
-  | 'for' '(' var=Expressionopt<~In,+NoLet> ';' .forSC ForCondition
+  | 'for' '(' var=Expressionopt<~In> ';' .forSC ForCondition
           ';' .forSC ForFinalExpression ')' Statement                 -> ForStatement
   | 'for' '(' var=Expression<~In,+StartWithLet, +NoAs> ';' .forSC ForCondition
           ';' .forSC ForFinalExpression ')' Statement                 -> ForStatement
@@ -927,7 +834,7 @@ IterationStatement -> Statement /* interface */:
           ';' .forSC ForFinalExpression ')' Statement                 -> ForStatementWithVar
   | 'for' '(' LetOrConst BindingList<~In> ';' .forSC ForCondition
           ';' .forSC ForFinalExpression ')' Statement                 -> ForStatementWithVar
-  | 'for' '(' var=LeftHandSideExpression<+NoLet>
+  | 'for' '(' var=LeftHandSideExpression
           'in' object=Expression<+In> ')' Statement                   -> ForInStatement
   | 'for' '(' var=LeftHandSideExpression<+StartWithLet>
           'in' object=Expression<+In> ')' Statement                   -> ForInStatement
@@ -935,7 +842,7 @@ IterationStatement -> Statement /* interface */:
           'in' object=Expression<+In> ')' Statement                   -> ForInStatementWithVar
   | 'for' '(' ForDeclaration
           'in' object=Expression<+In> ')' Statement                   -> ForInStatementWithVar
-  | 'for' '(' var=LeftHandSideExpression<+NoLet>
+  | 'for' '(' var=LeftHandSideExpression
           'of' iterable=AssignmentExpression<+In> ')' Statement       -> ForOfStatement
   | 'for' '(' 'var' ForBinding
           'of' iterable=AssignmentExpression<+In> ')' Statement       -> ForOfStatementWithVar
@@ -1058,11 +965,11 @@ PropertySetParameterList :
     Parameter ;
 
 ClassDeclaration -> Declaration /* interface */:
-    Modifiers? 'class' BindingIdentifier<+WithoutImplements>? TypeParametersopt ClassTail   -> Class
+    Modifiers? 'class' BindingIdentifier? TypeParametersopt ClassTail   -> Class
 ;
 
 ClassExpression -> ClassExpr :
-    Modifiers? 'class' BindingIdentifier<+WithoutImplements>? TypeParameters? ClassTail
+    Modifiers? 'class' BindingIdentifier? TypeParameters? ClassTail
 ;
 
 ClassTail :
@@ -1114,9 +1021,9 @@ ClassElement -> ClassElement /* interface */
 ;
 
 # === [ Types ]
-%interface TsType, TypeMember;
+%interface TypeMember;
 
-Type -> TsType /* interface */:
+Type -> SkrType /* interface */:
     UnionOrIntersectionOrPrimaryType %prec resolveShift
   | FunctionType
   | ConstructorType
@@ -1135,22 +1042,22 @@ Constraint -> TypeConstraint :
 TypeArguments -> TypeArguments :
     '<' (Type separator ',')+ '>' ;
 
-UnionOrIntersectionOrPrimaryType -> TsType /* interface */:
+UnionOrIntersectionOrPrimaryType -> SkrType /* interface */:
     inner+=UnionOrIntersectionOrPrimaryType? '|' inner+=IntersectionOrPrimaryType -> UnionType
   | IntersectionOrPrimaryType %prec resolveShift
 ;
 
-IntersectionOrPrimaryType -> TsType /* interface */:
+IntersectionOrPrimaryType -> SkrType /* interface */:
     inner+=IntersectionOrPrimaryType? '&' inner+=KeyOfOrPrimaryType -> IntersectionType
   | KeyOfOrPrimaryType
 ;
 
-KeyOfOrPrimaryType -> TsType /* interface */:
+KeyOfOrPrimaryType -> SkrType /* interface */:
     KeyOfType
   | PrimaryType
 ;
 
-PrimaryType -> TsType /* interface */:
+PrimaryType -> SkrType /* interface */:
     ParenthesizedType
   | PredefinedType
   | TypeReference
@@ -1176,20 +1083,11 @@ LiteralType -> LiteralType :
   | 'false'
 ;
 
-PredefinedType -> PredefinedType :
-    'any'
-  | 'number'
-  | 'boolean'
-  | 'string'
-  | 'symbol'
-  | 'void'
-;
-
 TypeReference -> TypeReference :
     TypeName .noLineBreak TypeArguments? %prec resolveShift ;
 
 TypeName -> TypeName :
-    ref+=IdentifierReference<+WithoutPredefinedTypes>
+    ref+=IdentifierReference
 ;
 
 ObjectType -> ObjectType :
@@ -1273,7 +1171,7 @@ TypeQueryExpression :
 
 PropertySignature -> PropertySignature
     #: Modifiers? PropertyName<+WithoutNew> '?'? TypeAnnotation?
-    : Modifiers? PropertyName<+WithoutNew> '?'?
+    : Modifiers? PropertyName '?'?
 ;
 
 FormalParameters
@@ -1331,10 +1229,21 @@ ConstructSignature -> ConstructSignature
 #;
 
 MethodSignature -> MethodSignature :
-    Modifiers? PropertyName<+WithoutNew> '?'? FormalParameters ;
+    Modifiers? PropertyName '?'? FormalParameters ;
 
 TypeAliasDeclaration -> TypeAliasDeclaration :
     'type' BindingIdentifier TypeParameters? '=' Type ';' ;
+
+
+
+
+
+
+
+
+
+
+
 
 # === [ Interfaces ]
 InterfaceDeclaration -> TsInterface:
@@ -1343,8 +1252,9 @@ InterfaceDeclaration -> TsInterface:
 InterfaceExtendsClause -> TsInterfaceExtends:
     'extends' (TypeReference separator ',')+ ;
 
+
 # === [ Enums ]
-EnumDeclaration -> TsEnum:
+EnumDeclaration -> SkrEnum:
     'const'? 'enum' BindingIdentifier EnumBody ;
 
 EnumBody -> TsEnumBody:
@@ -1354,6 +1264,10 @@ EnumMember -> TsEnumMember:
     PropertyName
   | PropertyName '=' AssignmentExpression<+In>
 ;
+
+
+
+
 
 
 
@@ -1380,63 +1294,14 @@ DecoratorCallExpression
     : DecoratorMemberExpression Arguments
 ;
 
-# === [ Import ]
-ImportList
-    : ImportDeclaration*
-;
-
-ImportDeclaration -> ImportDeclaration
-    : 'import' ModuleSpecifier
-    | 'import' '(' ModuleSpecifier+ ')'
-;
-
-ModuleSpecifier -> ModuleSpecifier
-    : BindingIdentifier? StringLiteral
-;
-
-# === [ Modules ]
-
-Package -> Package
-    #: SingleLineComment* 'package' PackageName Define*
-    : 'package' PackageName PackageBody
-;
-PackageName -> PackageName: Identifier;
-PackageBody
-    : ImportList ModuleItemList
-;
-
-%interface ModuleItem;
-ModuleItemList
-    : ModuleItem
-    | ModuleItemList ModuleItem
-;
-ModuleItem -> ModuleItem /* interface */
-    :StatementListItem
-;
-
-
-
-
-# ### [ Has Removed ]
-# jsx
-# ~~赋值表达式(AssignmentExpression) - 禁止连续赋值
-# namespace, ts-module, export
-# GeneratorFunc&yield
-# async/await
-# ArrowFunc & ConciseBody
-# regexp
-# templateString
-
-# ### [ Temp Remove | Need Change ]
-# [X] import
 # [ ] TsType => SkrType (e.g. PredefinedType); remove TypeAnnotation
 # [ ] for/while/...
 # [ ] if/else
 # [ ] var/const/let -> var/const
-##### `a:=1`
-##### `var a int`
-##### `var (
-#####    a int
-#####    b = 1
-##### )`
 # [ ] ts-declare(Ambient) -> extern asm
+# [ ] interface
+# [ ] enum
+
+# `Ts`:
+# TsNonNull TsCastExpression TsAsExpression TsImplementsClause
+# TsInterface TsInterfaceExtends TsEnum TsEnumBody TsEnumMember
