@@ -1,6 +1,16 @@
-test.ll: main.go
-	# go run main.go
-	./build.sh
+test.ll: export ROOT=/home/moyinzi/projects/gPro/sakura-cat/tm-test/test/
+test.ll: export SKRBIN=$(ROOT)bin
+test.ll: export SKRCACHE=$(ROOT)cache
+test.ll: export SKRPATH=$(ROOT)src
+test.ll: export SKRMOD=$(ROOT)src/test1/skr.mod
+test.ll: main.go test/src/test1/*.skr grammar/skr.tm
+	# ./build.sh
+	@echo ENV[ROOT]     = $(ROOT)
+	@echo ENV[SKRBIN]   = $(SKRBIN)
+	@echo ENV[SKRCACHE] = $(SKRCACHE)
+	@echo ENV[SKRPATH]  = $(SKRPATH)
+	@echo ENV[SKRMOD]   = $(SKRMOD)
+	@go run main.go
 
 test.o3.ll: test.ll
 	opt -O3 -S -o test.o3.ll test.ll

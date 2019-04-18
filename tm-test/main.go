@@ -44,10 +44,11 @@ func main() {
 	SkrPath := os.Getenv("SKRPATH")
 	// SkrMod := os.Getenv("SKRMOD")
 
-	mod := SkrPath + "/test1"
-	bufs := make([]byte, 0)
+	// mod := SkrPath + "/test1"
+	mod := SkrPath + "/test3"
 	files := make([]string, 0)
 
+	roots := make([]*ast.Node, 0)
 	filepath.Walk(mod, func(p string, info os.FileInfo, err error) error {
 		if info.IsDir() {
 			return nil
@@ -60,93 +61,99 @@ func main() {
 		if e != nil {
 			panic(e)
 		}
-		bufs = append(bufs, buf...)
 		files = append(files, info.Name())
+
+		t, e := ast.Parse(p, string(buf), func(err grammar.SyntaxError) bool {
+			pretty.Println("parser", err)
+			return true
+		})
+		if e != nil {
+			if e.Error() == "exactly one root node is expected" {
+				println("source code should start with 'package <name>'")
+				return nil
+			}
+			pretty.Println("ast.Parse", e)
+			return nil
+		}
+		// pretty.Println(t)
+		root := t.Root()
+		tmp(0, root)
+
+		roots = append(roots, root)
 		return nil
 	})
+	return
 
-	t, e := ast.Parse(mod, string(bufs), func(err grammar.SyntaxError) bool {
-		pretty.Println("parser", err)
-		return true
-	})
-	if e != nil {
-		pretty.Println(e)
-		return
-	}
-	// pretty.Println(t)
-	root := t.Root()
-	tmp(0, root)
+	/*
+		pkg := generater.NewPkg()
+		fs := make(map[string]*generater.Func)
+		for i, pkgRoot := range roots {
+			p := mod + "/" + files[i]
 
-	pkgs := root.Children(selector.Package)
-	pkg := generater.NewPkg()
-	fs := make(map[string]*generater.Func)
-	for i, pkgRoot := range pkgs {
-		firstLen, _ := pkgRoot.LineColumn()
-		firstLen--
-		p := mod + "/" + files[i]
-
-		tmp := pkgRoot.Child(selector.PackageName)
-		pkgName := tmp.Text()
-		if i == 0 {
-			pkg.Name(pkgName)
-		} else {
-			ok := pkg.CheckName(pkgName)
-			if !ok {
-				_, c := tmp.LineColumn()
-				fmt.Printf("%v:1:%v: package name should be same\n", p, c)
-				return
-			}
-		}
-
-		defines := pkgRoot.Children(selector.Define)
-		for _, astD := range defines {
-			astF := astD.Child(selector.Func)
-			tmp := astF.Child(selector.FuncName)
-			fName := tmp.Text()
-			f := pkg.DefineFunc(fName, types.Void)
-			if fs[fName] != nil {
-				l, c := tmp.LineColumn()
-				fmt.Printf("%v:%v:%v: func has be defined\n", p, l-firstLen, c)
-			}
-			fs[fName] = f
-		}
-		for _, astD := range defines {
-			astF := astD.Child(selector.Func)
-			fName := astF.Child(selector.FuncName).Text()
-			f := fs[fName]
-			stats := astF.Children(selector.Stat)
-			for _, astS := range stats {
-				stat := astS.Child(selector.Any)
-				switch stat.Type() {
-				case grammar.CallStat:
-					fN := stat.Child(selector.FuncName).Text()
-					// fmt.Println(fN)
-					argList := stat.Children(selector.Expr)
-					args := make([]value.Value, 0)
-					for _, expr := range argList {
-						args = append(args, expr2Value(pkg, expr))
-					}
-					f.CallFunc(fN, args...)
-				case grammar.AssignStat:
-					vN := stat.Child(selector.VarName).Text()
-					expr := stat.Child(selector.Expr)
-					v, t := parserExpr(expr)
-					val := f.Block().NewAlloca(t)
-					f.Block().NewStore(v, val)
-					f.ValMap[vN] = val
-				default:
-					l, c := stat.LineColumn()
-					fmt.Printf("%v:%v:%v: unknow stat\n", p, l-firstLen, c)
+			tmp := pkgRoot.Child(selector.PackageName)
+			pkgName := tmp.Text()
+			if i == 0 {
+				pkg.Name(pkgName)
+			} else {
+				ok := pkg.CheckName(pkgName)
+				if !ok {
+					l, c := tmp.LineColumn()
+					fmt.Printf("%v:%v:%v: package name should be same\n", p, l, c)
 					return
 				}
 			}
-			f.Block().NewRet(nil)
-		}
-	}
 
-	m := pkg.Module()
-	// println(m.String())
-	ioutil.WriteFile("test.ll", []byte(m.String()), 0644)
+			defines := pkgRoot.Children(selector.Define)
+			for _, astD := range defines {
+				astF := astD.Child(selector.Func)
+				tmp := astF.Child(selector.FuncName)
+				fName := tmp.Text()
+				f := pkg.DefineFunc(fName, types.Void)
+				if fs[fName] != nil {
+					l, c := tmp.LineColumn()
+					fmt.Printf("%v:%v:%v: func has be defined\n", p, l, c)
+				}
+				fs[fName] = f
+			}
+			for _, astD := range defines {
+				astF := astD.Child(selector.Func)
+				fName := astF.Child(selector.FuncName).Text()
+				f := fs[fName]
+				stats := astF.Children(selector.Stat)
+				for _, astS := range stats {
+					stat := astS.Child(selector.Any)
+					switch stat.Type() {
+					case grammar.CallStat:
+						fN := stat.Child(selector.FuncName).Text()
+						// fmt.Println(fN)
+						argList := stat.Children(selector.Expression)
+						args := make([]value.Value, 0)
+						for _, expr := range argList {
+							args = append(args, expr2Value(pkg, expr))
+						}
+						f.CallFunc(fN, args...)
+					case grammar.AssignStat:
+						vN := stat.Child(selector.VarName).Text()
+						expr := stat.Child(selector.Expression)
+						v, t := parserExpr(expr)
+						val := f.Block().NewAlloca(t)
+						f.Block().NewStore(v, val)
+						f.ValMap[vN] = val
+					default:
+						l, c := astS.LineColumn()
+						// println(l, c, astS.Text())
+						fmt.Printf("%v:%v:%v: unknow stat\n", p, l, c)
+						return
+					}
+				}
+				f.Block().NewRet(nil)
+			}
+		}
+
+		m := pkg.Module()
+		// println(m.String())
+		ioutil.WriteFile("test.ll", []byte(m.String()), 0644)
+	*/
 }
 
 func unquote(s string) string {

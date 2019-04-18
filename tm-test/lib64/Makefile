@@ -40,11 +40,11 @@ test.a.out: build/skr.a test.o
 	test.o \
 	build/skr.a \
 	build/entry.o; chmod +x test.a.out
-test.so.out: build/skr.so test.o
-	ld -s -o test.so.out \
-	-dynamic-linker build/skr.so \
-	test.o \
-	build/entry.o; chmod +x test.so.out
+#test.so.out: build/skr.so test.o
+#	ld -s -o test.so.out \
+#	-dynamic-linker build/skr.so \
+#	test.o \
+#	build/entry.o; chmod +x test.so.out
 
 clean:
 	rm *.bc *.ll *.o *.out *.s *.lst *.tmp.asm *.so *.a *.dump

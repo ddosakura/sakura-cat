@@ -1,0 +1,14 @@
+package test2
+
+type a enum {
+    +
+    A, B, C
+}
+
+type NoArgFunc func(a int)
+
+let a = 1;
+
+func (a *Block) main() {
+    const a = 1;
+}

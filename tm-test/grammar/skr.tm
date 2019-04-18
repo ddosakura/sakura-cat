@@ -90,6 +90,7 @@ invalid_token: /({identifierStart}{identifierPart}*)?{brokenEscapeSequence}/
 'go':     /go/
 'asm':    /asm/
 'extern': /extern/
+'struct': /struct/
 
 'await':      /await/
 'break':      /break/
@@ -308,8 +309,145 @@ resolveShift:
 %lookahead flag NoAs = false;
 %lookahead flag StartWithLet = false;
 
+%left resolveShift;
+%left '||';
+%left '&&';
+%left '|';
+%left '^';
+%left '&';
+%left '==' '!=' '===' '!==';
+%left '<' '>' '<=' '>=' 'instanceof' 'in' 'as';
+%left '<<' '>>' '>>>';
+%left '-' '+';
+%left '*' '/' '%';
+%right '**';
+%right 'else';
+%left 'keyof' 'typeof';
+%nonassoc 'is';
+
 SyntaxError -> SyntaxProblem
     : error
+;
+
+# === [ Identifier ]
+
+IdentifierName
+    : Identifier
+;
+
+IdentifierNameDecl
+    : IdentifierName -> BindingIdentifier
+;
+
+IdentifierNameRef
+    : IdentifierName -> IdentifierReference
+;
+
+IdentifierReference -> IdentifierReference
+    : Identifier
+;
+
+BindingIdentifier -> BindingIdentifier
+    : Identifier
+;
+
+# 标签标识符
+LabelIdentifier -> LabelIdentifier
+    : Identifier
+;
+
+# === [ Types ]
+%interface SkrType, TypeMember;
+
+PredefinedType -> PredefinedType
+    : 'void'
+    | 'symbol'
+    | 'string'
+    | 'bool'
+    | 'byte'
+    | 'uintptr'
+
+    | 'int'
+    | 'int8'
+    | 'int16'
+    | 'int32'
+    | 'int64'
+
+    | 'uint'
+    | 'uint8'
+    | 'uint16'
+    | 'uint32'
+    | 'uint64'
+
+    | 'float32'
+    | 'float64'
+    | 'complex'
+    | 'complex64'
+    | 'complex128'
+;
+
+LiteralType -> LiteralType
+    #: StringLiteral
+    : BindingIdentifier
+;
+TypeAliasDeclaration -> TypeAliasDeclaration
+    : 'type' BindingIdentifier Type
+;
+
+Type -> SkrType /* interface */
+    : PredefinedType
+    | LiteralType
+
+    | ArrayType
+    | RefType
+
+    | EnumType
+    | StructType
+    | InterfaceType
+    | FunctionType
+;
+
+ArrayType -> ArrayType
+    : '[' ']' Type
+;
+RefType -> RefType
+    : '*' Type
+;
+
+# --- [ Enum ]
+EnumType -> EnumType
+    : 'enum' '{' ('+'|'<<') (BindingIdentifier separator ',')+ '}'
+;
+
+# --- [ Struct ]
+StructType -> StructType
+    : 'struct' '{' StructItem* '}'
+;
+StructItem -> StructItem
+    : BindingIdentifier Type
+;
+
+# --- [ Interface ]
+InterfaceType -> InterfaceType
+    : 'interface' '{' InterfaceItem* '}'
+;
+InterfaceItem -> InterfaceItem
+    : BindingIdentifier FunctionInfo
+;
+
+# --- [ Function ]
+FunctionType -> FunctionType
+    : 'func' FunctionInfo
+;
+FunctionInfo
+    : '(' ParameterList* ')' RetList?
+;
+ParameterList -> ParameterList
+    : (BindingIdentifier separator ',')+ Type
+;
+RetList -> RetList
+    : Type
+    | '(' (Type separator ',')+ ')'
 ;
 
 # === [ Package & Module ]
@@ -329,7 +467,7 @@ ModuleItemList
     | ModuleItemList ModuleItem
 ;
 ModuleItem -> ModuleItem /* interface */
-    :StatementListItem
+    : StatementListItem
 ;
 
 # --- [ Import Declaration ]
@@ -348,6 +486,7 @@ ModuleSpecifier -> ModuleSpecifier
 ;
 
 # === [ Literal ]
+%interface Literal;
 
 # --- [ 一般字面量 ]
 Literal -> Literal
@@ -398,7 +537,7 @@ PropertyDefinitionList
 PropertyDefinition -> PropertyDefinition /* interface */
     : IdentifierReference -> ShorthandProperty
     | Modifiers? PropertyName ':' value=AssignmentExpression<+In> -> Property
-    | Modifiers? MethodDefinition -> ObjectMethod
+    #| Modifiers? MethodDefinition -> ObjectMethod
     | CoverInitializedName -> SyntaxProblem
     | SyntaxError
     | '...' AssignmentExpression<+In> -> SpreadProperty
@@ -427,63 +566,6 @@ Initializer<In> -> Initializer
     : '=' AssignmentExpression
 ;
 
-# === [ Types ]
-%interface SkrType;
-
-PredefinedType -> PredefinedType
-    : 'void'
-    | 'symbol'
-    | 'string'
-    | 'bool'
-    | 'byte'
-    | 'uintptr'
-
-    | 'int'
-    | 'int8'
-    | 'int16'
-    | 'int32'
-    | 'int64'
-
-    | 'uint'
-    | 'uint8'
-    | 'uint16'
-    | 'uint32'
-    | 'uint64'
-
-    | 'float32'
-    | 'float64'
-    | 'complex'
-    | 'complex64'
-    | 'complex128'
-;
-
-# === [ Identifier ]
-
-IdentifierName
-    : Identifier
-;
-
-IdentifierNameDecl
-    : IdentifierName -> BindingIdentifier
-;
-
-IdentifierNameRef
-    : IdentifierName -> IdentifierReference
-;
-
-IdentifierReference -> IdentifierReference
-    : Identifier
-;
-
-BindingIdentifier -> BindingIdentifier
-    : Identifier
-;
-
-# 标签标识符
-LabelIdentifier -> LabelIdentifier
-    : Identifier
-;
-
 # === [ Expression ]
 %interface Expression;
 
@@ -500,8 +582,8 @@ PrimaryExpression -> Expression /* interface */
     | Literal
     | ArrayLiteral
     | [!NoObjLiteral] ObjectLiteral
-    | [!NoFuncClass] FunctionExpression
-    | [!NoFuncClass] ClassExpression
+    #| [!NoFuncClass] FunctionExpression
+    #| [!NoFuncClass] ClassExpression
     | Parenthesized
 ;
 
@@ -541,7 +623,7 @@ NewTarget -> NewTarget
 ;
 
 NewExpression -> Expression /* interface */
-    : MemberExpression  (?= !StartOfParametrizedCall)
+    : MemberExpression  #(?= !StartOfParametrizedCall)
     | [!StartWithLet] 'new' expr=NewExpression -> NewExpression
 ;
 
@@ -559,13 +641,13 @@ SuperCall
 ;
 
 Arguments -> Arguments
-    : (?= StartOfParametrizedCall) TypeArguments '(' (list=ArgumentList ','?)? ')'
-    | '(' (list=ArgumentList ','?)? ')'
+    : '(' (list=ArgumentList ','?)? ')'
+    #| (?= StartOfParametrizedCall) TypeArguments '(' (list=ArgumentList ','?)? ')'
 ;
 
-StartOfParametrizedCall
-    : TypeArguments '('
-;
+#StartOfParametrizedCall
+#    : TypeArguments '('
+#;
 
 ArgumentList
     : AssignmentExpression<+In>
@@ -576,7 +658,7 @@ ArgumentList
 
 LeftHandSideExpression -> Expression /* interface */
     : NewExpression
-    | CallExpression (?= !StartOfParametrizedCall)
+    | CallExpression #(?= !StartOfParametrizedCall)
 ;
 
 UpdateExpression -> Expression /* interface */
@@ -599,20 +681,6 @@ UnaryExpression -> Expression /* interface */
     | [!StartWithLet] '!' UnaryExpression -> UnaryExpression
     | [!StartWithLet] '<' Type '>' UnaryExpression -> TsCastExpression
 ;
-
-%left resolveShift;
-
-%left '||';
-%left '&&';
-%left '|';
-%left '^';
-%left '&';
-%left '==' '!=' '===' '!==';
-%left '<' '>' '<=' '>=' 'instanceof' 'in' 'as';
-%left '<<' '>>' '>>>';
-%left '-' '+';
-%left '*' '/' '%';
-%right '**';
 
 # 算术表达式
 ArithmeticExpression -> Expression /* interface */
@@ -694,15 +762,13 @@ Statement -> Statement /* interface */:
 
 Declaration -> Declaration /* interface */:
     HoistableDeclaration
-  | ClassDeclaration
+  #| ClassDeclaration
   | LexicalDeclaration<+In>
   | TypeAliasDeclaration
-  | InterfaceDeclaration
-  | EnumDeclaration
 ;
 
 HoistableDeclaration -> Declaration /* interface */:
-    FunctionDeclaration
+    TopFunctionDeclaration
 ;
 
 BreakableStatement -> Statement /* interface */:
@@ -723,10 +789,10 @@ StatementList :
 
 %interface StatementListItem, BindingPattern, PropertyPattern, ElementPattern, CaseClause;
 
-StatementListItem -> StatementListItem /* interface */:
-    Statement
-  | Declaration
-  | error ';'                                         -> SyntaxProblem
+StatementListItem -> StatementListItem /* interface */
+    : Declaration
+    #| Statement
+    | error ';' -> SyntaxProblem
 ;
 
 LexicalDeclaration<In> -> LexicalDeclaration :
@@ -936,339 +1002,28 @@ DebuggerStatement -> DebuggerStatement :
     'debugger' ';'
 ;
 
-# === [ Functions and Classes ]
+# === [ Functions ]
 
-%interface ClassElement, MethodDefinition;
-
-FunctionDeclaration -> Function :
-    'func' BindingIdentifier? FormalParameters FunctionBody ;
-
-FunctionExpression -> FunctionExpression :
-    'func' BindingIdentifier? FormalParameters FunctionBody ;
-
-UniqueFormalParameters :
-    FormalParameters ;
-
-FunctionBody -> Body :
-    '{' .recoveryScope StatementList? '}'
-  | ';'
+TopFunctionDeclaration -> FunctionDeclaration
+    : Modifiers? 'func' FunctionNamespace? FunctionName FunctionInfo Block
+;
+FunctionDeclaration -> FunctionDeclaration
+    : Modifiers? 'func' FunctionInfo Block
 ;
 
-MethodDefinition -> MethodDefinition /* interface */
-    : PropertyName '?'? UniqueFormalParameters FunctionBody -> Method
-    #| 'get' PropertyName '(' ')' TypeAnnotationopt FunctionBody             -> Getter
-    | 'get' PropertyName '(' ')' FunctionBody             -> Getter
-    | 'set' PropertyName '(' PropertySetParameterList ')'  FunctionBody     -> Setter
+FunctionName -> FunctionName
+    : BindingIdentifier
 ;
-
-PropertySetParameterList :
-    Parameter ;
-
-ClassDeclaration -> Declaration /* interface */:
-    Modifiers? 'class' BindingIdentifier? TypeParametersopt ClassTail   -> Class
-;
-
-ClassExpression -> ClassExpr :
-    Modifiers? 'class' BindingIdentifier? TypeParameters? ClassTail
-;
-
-ClassTail :
-    ClassHeritage ClassBody ;
-
-ClassHeritage:
-    ClassExtendsClause? ImplementsClause? ;
-
-StartOfExtendsTypeRef:
-    TypeReference ('implements' | '{') ;
-
-ClassExtendsClause -> Extends:
-    'extends' (?= StartOfExtendsTypeRef) TypeReference
-  | 'extends' (?= !StartOfExtendsTypeRef) LeftHandSideExpression
-;
-
-ImplementsClause -> TsImplementsClause:
-    'implements' (TypeReference separator ',')+ ;
-
-ClassBody -> ClassBody :
-    '{' .recoveryScope ClassElementList? '}' ;
-
-ClassElementList :
-    ClassElement
-  | ClassElementList ClassElement
+FunctionNamespace -> FunctionNamespace
+    #: '(' IdentifierReference '*'? BindingIdentifier ')'
+    : '(' BindingIdentifier '*'? IdentifierReference ')'
 ;
 
 %interface Modifier;
-
-Modifier -> Modifier:
-    AccessibilityModifier
-  | Decorator
-  | 'static'                -> Static
-  | 'abstract'              -> Abstract
-  | 'readonly'              -> Readonly
+Modifier -> Modifier
+    : Decorator
 ;
-
-Modifiers:
-    Modifier
-  | Modifiers Modifier
-;
-
-ClassElement -> ClassElement /* interface */
-    : Modifiers? MethodDefinition                 -> MemberMethod
-    #| Modifiers? PropertyName ('?'|'!')? TypeAnnotationopt Initializeropt<+In> ';' -> MemberVar
-    | Modifiers? PropertyName ('?'|'!')? Initializeropt<+In> ';' -> MemberVar
-    #| IndexSignature ';' -> TsIndexMemberDeclaration
-    | ';'                                         -> EmptyDecl
-;
-
-# === [ Types ]
-%interface TypeMember;
-
-Type -> SkrType /* interface */:
-    UnionOrIntersectionOrPrimaryType %prec resolveShift
-  | FunctionType
-  | ConstructorType
-  | paramref=IdentifierNameRef 'is' Type -> TypePredicate
-;
-
-TypeParameters -> TypeParameters :
-    '<' (TypeParameter separator ',')+ '>' ;
-
-TypeParameter -> TypeParameter :
-    BindingIdentifier Constraint? ('=' Type)?;
-
-Constraint -> TypeConstraint :
-    'extends' Type ;
-
-TypeArguments -> TypeArguments :
-    '<' (Type separator ',')+ '>' ;
-
-UnionOrIntersectionOrPrimaryType -> SkrType /* interface */:
-    inner+=UnionOrIntersectionOrPrimaryType? '|' inner+=IntersectionOrPrimaryType -> UnionType
-  | IntersectionOrPrimaryType %prec resolveShift
-;
-
-IntersectionOrPrimaryType -> SkrType /* interface */:
-    inner+=IntersectionOrPrimaryType? '&' inner+=KeyOfOrPrimaryType -> IntersectionType
-  | KeyOfOrPrimaryType
-;
-
-KeyOfOrPrimaryType -> SkrType /* interface */:
-    KeyOfType
-  | PrimaryType
-;
-
-PrimaryType -> SkrType /* interface */:
-    ParenthesizedType
-  | PredefinedType
-  | TypeReference
-  | ObjectType
-  #| MappedType
-  | ArrayType
-  | IndexedAccessType
-  | LiteralType
-  | TupleType
-  | TypeQuery
-  | 'this'                           -> ThisType
-;
-
-ParenthesizedType -> ParenthesizedType :
-    '(' (?= !StartOfFunctionType) Type ')' ;
-
-# 2.0
-LiteralType -> LiteralType :
-    StringLiteral
-  | '-'? NumericLiteral
-  | NULL
-  | 'true'
-  | 'false'
-;
-
-TypeReference -> TypeReference :
-    TypeName .noLineBreak TypeArguments? %prec resolveShift ;
-
-TypeName -> TypeName :
-    ref+=IdentifierReference
-;
-
-ObjectType -> ObjectType :
-    '{' .recoveryScope (?= !StartOfMappedType) TypeBody? '}' ;
-
-TypeBody :
-    TypeMemberList
-  | TypeMemberList ','
-  | TypeMemberList ';'
-;
-
-TypeMemberList :
-    TypeMember
-  | TypeMemberList ';' TypeMember
-  | TypeMemberList ',' TypeMember
-;
-
-TypeMember -> TypeMember /* interface */:
-    PropertySignature
-  | MethodSignature
-  | CallSignature
-  | ConstructSignature
-  #| IndexSignature
-;
-
-ArrayType -> ArrayType :
-    PrimaryType .noLineBreak '[' ']' ;
-
-# 2.1
-IndexedAccessType -> IndexedAccessType :
-    left=PrimaryType .noLineBreak '[' index=Type ']' ;
-
-# 2.1
-StartOfMappedType :
-    'readonly'? '[' IdentifierName 'in' ;
-
-# 2.1
-#MappedType -> MappedType
-#    : '{' .recoveryScope (?= StartOfMappedType) 'readonly'? '[' Identifier 'in' Type ']' '?'? TypeAnnotation ';'? '}'
-#;
-
-TupleType -> TupleType :
-    '[' (Type separator ',')+ ']' ;
-
-# This lookahead rule disambiguates FunctionType vs ParenthesizedType
-# productions by enumerating all prefixes of FunctionType that would
-# lead to parse failure if interpreted as Type.
-# (partially inspired by isUnambiguouslyStartOfFunctionType() in
-# src/compiler/parser.ts)
-StartOfFunctionType :
-    Modifiers? BindingIdentifier (':' | ',' | '?' | '=' | ')' '=>')
-  | Modifiers? BindingPattern (':' | ',' | '?' | '=' | ')' '=>')
-  | '...'
-  | 'this' ':'
-  | ')'
-;
-
-FunctionType -> FunctionType :
-    TypeParameters? FunctionTypeParameterList '=>' Type ;
-
-FunctionTypeParameterList -> Parameters :
-    '(' (?= StartOfFunctionType) (Parameter separator ',')+? ','? ')' ;
-
-ConstructorType -> ConstructorType :
-    'new' TypeParameters? ParameterList '=>' Type ;
-
-%left 'keyof' 'typeof';
-%nonassoc 'is';
-
-# 2.1
-KeyOfType -> KeyOfType :
-    'keyof' KeyOfOrPrimaryType ;
-
-TypeQuery -> TypeQuery :
-    'typeof' TypeQueryExpression ;
-
-TypeQueryExpression :
-    IdentifierReference
-  | TypeQueryExpression '.' IdentifierName
-;
-
-PropertySignature -> PropertySignature
-    #: Modifiers? PropertyName<+WithoutNew> '?'? TypeAnnotation?
-    : Modifiers? PropertyName '?'?
-;
-
-FormalParameters
-    #: TypeParameters? ParameterList TypeAnnotation?
-    : TypeParameters? ParameterList
-;
-
-CallSignature -> CallSignature
-    #: TypeParameters? ParameterList TypeAnnotation?
-    : TypeParameters? ParameterList
-;
-
-ParameterList -> Parameters :
-    '(' (Parameter separator ',')+? ','? ')' ;
-
-%interface Parameter;
-
-Parameter -> Parameter
-    #: Modifiers? BindingIdentifier '?'? TypeAnnotation? -> DefaultParameter
-    #| Modifiers? BindingPattern '?'? TypeAnnotation? -> DefaultParameter
-    #| Modifiers? BindingIdentifier TypeAnnotation? Initializer<+In> -> DefaultParameter
-    #| Modifiers? BindingPattern TypeAnnotation? Initializer<+In> -> DefaultParameter
-    #| '...' BindingIdentifier TypeAnnotation? -> RestParameter
-    : Modifiers? BindingIdentifier '?'? -> DefaultParameter
-    | Modifiers? BindingPattern '?'? -> DefaultParameter
-    | Modifiers? BindingIdentifier Initializer<+In> -> DefaultParameter
-    | Modifiers? BindingPattern Initializer<+In> -> DefaultParameter
-    | '...' BindingIdentifier -> RestParameter
-
-    #| 'this' TypeAnnotation -> TsThisParameter
-    | SyntaxError
-;
-
-AccessibilityModifier -> AccessibilityModifier :
-    'public'
-  | 'private'
-  | 'protected'
-;
-
-BindingIdentifierOrPattern :
-    BindingIdentifier
-  | BindingPattern
-;
-
-ConstructSignature -> ConstructSignature
-    #: Modifiers? 'new' TypeParameters? ParameterList TypeAnnotation?
-    : Modifiers? 'new' TypeParameters? ParameterList
-;
-
-# Note: using IdentifierName instead of BindingIdentifier to avoid r/r
-# conflicts with ComputedPropertyName.
-#IndexSignature -> IndexSignature :
-#    Modifiers? '[' IdentifierName ':' 'string' ']' TypeAnnotation
-#  | Modifiers? '[' IdentifierName ':' 'number' ']' TypeAnnotation
-#;
-
-MethodSignature -> MethodSignature :
-    Modifiers? PropertyName '?'? FormalParameters ;
-
-TypeAliasDeclaration -> TypeAliasDeclaration :
-    'type' BindingIdentifier TypeParameters? '=' Type ';' ;
-
-
-
-
-
-
-
-
-
-
-
-
-# === [ Interfaces ]
-InterfaceDeclaration -> TsInterface:
-    'interface' BindingIdentifier TypeParametersopt InterfaceExtendsClause? ObjectType ;
-
-InterfaceExtendsClause -> TsInterfaceExtends:
-    'extends' (TypeReference separator ',')+ ;
-
-
-# === [ Enums ]
-EnumDeclaration -> SkrEnum:
-    'const'? 'enum' BindingIdentifier EnumBody ;
-
-EnumBody -> TsEnumBody:
-    '{' .recoveryScope ((EnumMember separator ',')+ ','?)? '}' ;
-
-EnumMember -> TsEnumMember:
-    PropertyName
-  | PropertyName '=' AssignmentExpression<+In>
-;
-
-
-
-
-
+Modifiers: Modifier+;
 
 
 
@@ -1294,14 +1049,18 @@ DecoratorCallExpression
     : DecoratorMemberExpression Arguments
 ;
 
-# [ ] TsType => SkrType (e.g. PredefinedType); remove TypeAnnotation
 # [ ] for/while/...
 # [ ] if/else
 # [ ] var/const/let -> var/const
 # [ ] ts-declare(Ambient) -> extern asm
+
+# [ ] TsType => SkrType (e.g. PredefinedType); remove TypeAnnotation
 # [ ] interface
+# [ ] class -> struct
 # [ ] enum
 
 # `Ts`:
 # TsNonNull TsCastExpression TsAsExpression TsImplementsClause
 # TsInterface TsInterfaceExtends TsEnum TsEnumBody TsEnumMember
+
+# [ ] TypeQuery
