@@ -178,6 +178,8 @@ invalid_token: /({identifierStart}{identifierPart}*)?{brokenEscapeSequence}/
 'complex': /complex/
 'complex64': /complex64/
 'complex128': /complex128/
+'error': /error/
+'map': /map/
 
 # Punctuation
 ':=': /:=/
@@ -237,6 +239,8 @@ invalid_token: /({identifierStart}{identifierPart}*)?{brokenEscapeSequence}/
 '**=': /\*\*=/
 
 # Literals.
+'_': /_/
+
 NULL:
 'null': /null/ { token = NULL }
 'nil': /nil/ { token = NULL }
@@ -360,7 +364,7 @@ LabelIdentifier -> LabelIdentifier
 %interface SkrType, TypeMember;
 
 PredefinedType -> PredefinedType
-    : 'void'
+    : 'error'
     | 'symbol'
     | 'string'
     | 'bool'
@@ -384,6 +388,8 @@ PredefinedType -> PredefinedType
     | 'complex'
     | 'complex64'
     | 'complex128'
+
+    #| 'void'
 ;
 
 LiteralType -> LiteralType
@@ -395,10 +401,15 @@ TypeAliasDeclaration -> TypeAliasDeclaration
 ;
 
 Type -> SkrType /* interface */
+    : PrimaryType
+;
+PrimaryType -> SkrType /* interface */
     : PredefinedType
+    #| ParenthesizedType
     | LiteralType
 
     | ArrayType
+    | MapType
     | RefType
 
     | EnumType
@@ -407,9 +418,19 @@ Type -> SkrType /* interface */
     | FunctionType
 ;
 
+ParenthesizedType -> ParenthesizedType
+    : '(' Type ')'
+;
+
 ArrayType -> ArrayType
     : '[' ']' Type
 ;
+
+MapType -> ArrayType
+    : 'map' '[' KeyType ']' Type
+;
+KeyType -> KeyType: Type;
+
 RefType -> RefType
     : '*' Type
 ;
@@ -424,7 +445,7 @@ StructType -> StructType
     : 'struct' '{' StructItem* '}'
 ;
 StructItem -> StructItem
-    : BindingIdentifier Type
+    : ParameterList
 ;
 
 # --- [ Interface ]
@@ -432,15 +453,17 @@ InterfaceType -> InterfaceType
     : 'interface' '{' InterfaceItem* '}'
 ;
 InterfaceItem -> InterfaceItem
-    : BindingIdentifier FunctionInfo
+    #: BindingIdentifier FunctionInfo
+    : BindingIdentifier FunctionInfo ';'
 ;
 
 # --- [ Function ]
 FunctionType -> FunctionType
-    : 'func' FunctionInfo
+    #:'func' FunctionInfo
+    :  '(' 'func' FunctionInfo ')'
 ;
 FunctionInfo
-    : '(' ParameterList* ')' RetList?
+    : '(' (ParameterList separator ',')* ')' RetList?
 ;
 ParameterList -> ParameterList
     : (BindingIdentifier separator ',')+ Type
@@ -495,6 +518,7 @@ Literal -> Literal
     | 'false' -> BoolLiteral
     | NumericLiteral -> NumLiteral
     | StringLiteral -> StrLiteral
+    | '_' -> UseLessLiteral
 ;
 
 # --- [ 数组字面量 ]
@@ -1015,7 +1039,6 @@ FunctionName -> FunctionName
     : BindingIdentifier
 ;
 FunctionNamespace -> FunctionNamespace
-    #: '(' IdentifierReference '*'? BindingIdentifier ')'
     : '(' BindingIdentifier '*'? IdentifierReference ')'
 ;
 

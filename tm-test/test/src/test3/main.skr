@@ -11,4 +11,5 @@ let a = 1;
 
 func (a *Block) main() {
     const a = 1;
+    a[0]();
 }
