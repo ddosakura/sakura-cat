@@ -85,79 +85,50 @@ Identifier: /{identifierStart}{identifierPart}*/    (class)
 invalid_token: /({identifierStart}{identifierPart}*)?{brokenEscapeSequence}/
 
 # Keywords.
-'package':    /package/
-'skr':    /skr/
-'go':     /go/
-'asm':    /asm/
-'extern': /extern/
-'struct': /struct/
+'package':      /package/
+'import':       /import/
 
-'await':      /await/
-'break':      /break/
-'case':       /case/
-'catch':      /catch/
-'class':      /class/
-'const':      /const/
-'continue':   /continue/
-'debugger':   /debugger/
-'default':    /default/
-'delete':     /delete/
-'do':         /do/
-'else':       /else/
-'export':     /export/
-'extends':    /extends/
-'finally':    /finally/
-'for':        /for/
-'func':       /func/
-'if':         /if/
-'import':     /import/
-'in':         /in/
-'instanceof': /instanceof/
-'new':        /new/
-'return':     /return/
-'super':      /super/
-'switch':     /switch/
-'this':       /this/
-'throw':      /throw/
-'try':        /try/
-'typeof':     /typeof/
-'var':        /var/
-'while':      /while/
-'with':       /with/
-'yield':      /yield/
-# Future-reserved.
-'enum':  /enum/
-# Soft (contextual) keywords.
-'as':     /as/
-'async':  /async/
-'from':   /from/
-'get':    /get/
-'let':    /let/
-'of':     /of/
-'set':    /set/
-'static': /static/
-'target': /target/
-# etc. I
-'implements':   /implements/
+'skr':          /skr/
+'go':           /go/
+'asm':          /asm/
+'extern':       /extern/
+'declare':      /declare/
+
+'var':          /var/
+'const':        /const/
+'type':         /type/
 'interface':    /interface/
-'private':      /private/
-'protected':    /protected/
-'public':       /public/
-# etc. III
-'abstract':    /abstract/
-'constructor': /constructor/
-'declare':     /declare/
-'is':          /is/
-'module':      /module/
-'namespace':   /namespace/
-'require':     /require/
-'type':        /type/
-# etc. IV
-'readonly': /readonly/
-'keyof': /keyof/
+'struct':       /struct/
+'map':          /map/
+'enum':         /enum/
+'chan':         /chan/
+
+'func':         /func/
+'defer':        /defer/
+'return':       /return/
+
+'select':       /select/
+'switch':       /switch/
+'case':         /case/
+'default':      /default/
+'fallthrough':  /fallthrough/
+
+'if':           /if/
+'else':         /else/
+
+'for':          /for/
+'range':        /range/
+'break':        /break/
+'continue':     /continue/
+'goto':         /goto/
+
+'throw':        /throw/
+'try':          /try/
+'catch':        /catch/
+'finally':      /finally/
 
 # types
-'void': /void/
+#'void': /void/
 'symbol':  /symbol/
 'string': /string/
 'bool': /bool/
@@ -179,7 +150,6 @@ invalid_token: /({identifierStart}{identifierPart}*)?{brokenEscapeSequence}/
 'complex64': /complex64/
 'complex128': /complex128/
 'error': /error/
-'map': /map/
 
 # Punctuation
 ':=': /:=/
@@ -305,8 +275,6 @@ resolveShift:
 
 %generate afterErr = set(follow error);
 
-%flag In;
-
 %lookahead flag NoLetSq = false;
 %lookahead flag NoObjLiteral = false;
 %lookahead flag NoFuncClass = false;
@@ -320,14 +288,14 @@ resolveShift:
 %left '^';
 %left '&';
 %left '==' '!=' '===' '!==';
-%left '<' '>' '<=' '>=' 'instanceof' 'in' 'as';
+%left '<' '>' '<=' '>=';# 'instanceof' 'in' 'as';
 %left '<<' '>>' '>>>';
 %left '-' '+';
 %left '*' '/' '%';
 %right '**';
 %right 'else';
-%left 'keyof' 'typeof';
-%nonassoc 'is';
+#%left 'keyof' 'typeof';
+#%nonassoc 'is';
 
 SyntaxError -> SyntaxProblem
     : error
@@ -529,9 +497,9 @@ ArrayLiteral -> ArrayLiteral
 ;
 
 ElementList
-    : Elisionopt AssignmentExpression<+In>
+    : Elisionopt AssignmentExpression
     | Elisionopt SpreadElement
-    | ElementList ',' Elisionopt AssignmentExpression<+In>
+    | ElementList ',' Elisionopt AssignmentExpression
     | ElementList ',' Elisionopt SpreadElement
 ;
 
@@ -541,7 +509,7 @@ Elision
 ;
 
 SpreadElement -> Expression /* interface */
-    : '...' AssignmentExpression<+In> -> SpreadElement
+    : '...' AssignmentExpression -> SpreadElement
 ;
 
 # --- [ 对象字面量 ]
@@ -560,11 +528,11 @@ PropertyDefinitionList
 
 PropertyDefinition -> PropertyDefinition /* interface */
     : IdentifierReference -> ShorthandProperty
-    | Modifiers? PropertyName ':' value=AssignmentExpression<+In> -> Property
+    | Modifiers? PropertyName ':' value=AssignmentExpression -> Property
     #| Modifiers? MethodDefinition -> ObjectMethod
     | CoverInitializedName -> SyntaxProblem
     | SyntaxError
-    | '...' AssignmentExpression<+In> -> SpreadProperty
+    | '...' AssignmentExpression -> SpreadProperty
 ;
 
 PropertyName -> PropertyName /* interface */
@@ -579,21 +547,21 @@ LiteralPropertyName -> LiteralPropertyName
 ;
 
 ComputedPropertyName -> ComputedPropertyName
-    : '[' AssignmentExpression<+In> ']'
+    : '[' AssignmentExpression ']'
 ;
 
 CoverInitializedName
-    : IdentifierReference Initializer<+In>
+    : IdentifierReference Initializer
 ;
 
-Initializer<In> -> Initializer
+Initializer -> Initializer
     : '=' AssignmentExpression
 ;
 
 # === [ Expression ]
 %interface Expression;
 
-Expression<In> -> Expression /* interface */
+Expression -> Expression /* interface */
     # 赋值表达式
     : AssignmentExpression
     # 逗号表达式
@@ -601,8 +569,7 @@ Expression<In> -> Expression /* interface */
 ;
 
 PrimaryExpression -> Expression /* interface */
-    : 'this' -> This
-    | IdentifierReference
+    : IdentifierReference
     | Literal
     | ArrayLiteral
     | [!NoObjLiteral] ObjectLiteral
@@ -612,56 +579,30 @@ PrimaryExpression -> Expression /* interface */
 ;
 
 Parenthesized -> Parenthesized
-    : '(' Expression<+In> ')'
+    : '(' Expression ')'
     | '(' SyntaxError ')'
 ;
 
 MemberExpression<flag NoLetOnly = false> -> Expression /* interface */
     : [!NoLetOnly && !StartWithLet] PrimaryExpression
     | [NoLetOnly && !StartWithLet] PrimaryExpression
-    | [StartWithLet && !NoLetOnly] 'let' -> IdentifierReference
-    | [StartWithLet] expr=MemberExpression<+NoLetOnly> '[' index=Expression<+In> ']' -> IndexAccess
-    | [!StartWithLet] expr=MemberExpression<NoLetOnly: NoLetSq> '[' index=Expression<+In> ']' -> IndexAccess
+    #########| [StartWithLet && !NoLetOnly] 'let' -> IdentifierReference
+    | [StartWithLet] expr=MemberExpression<+NoLetOnly> '[' index=Expression ']' -> IndexAccess
+    | [!StartWithLet] expr=MemberExpression<NoLetOnly: NoLetSq> '[' index=Expression ']' -> IndexAccess
     | expr=MemberExpression '.' selector=IdentifierNameRef -> PropertyAccess
     | expr=MemberExpression .noLineBreak '!' -> TsNonNull
-    | [!StartWithLet] SuperProperty
-    | [!StartWithLet] MetaProperty
-    | [!StartWithLet] 'new' expr=MemberExpression Arguments -> NewExpression
-;
-
-SuperExpression -> Expression /* interface */
-    : 'super' -> SuperExpression
-;
-
-SuperProperty -> Expression /* interface */
-    : expr=SuperExpression '[' index=Expression<+In> ']' -> IndexAccess
-    | expr=SuperExpression '.' selector=IdentifierNameRef -> PropertyAccess
-;
-
-MetaProperty
-    : NewTarget
-;
-
-NewTarget -> NewTarget
-    : 'new' '.' 'target'
 ;
 
 NewExpression -> Expression /* interface */
     : MemberExpression  #(?= !StartOfParametrizedCall)
-    | [!StartWithLet] 'new' expr=NewExpression -> NewExpression
 ;
 
 CallExpression -> Expression /* interface */
     : expr=MemberExpression Arguments -> CallExpression
-    | [!StartWithLet] SuperCall -> CallExpression
     | expr=CallExpression Arguments -> CallExpression
-    | expr=CallExpression '[' index=Expression<+In> ']' -> IndexAccess
+    | expr=CallExpression '[' index=Expression ']' -> IndexAccess
     | expr=CallExpression '.' selector=IdentifierNameRef -> PropertyAccess
     | expr=CallExpression .noLineBreak '!' -> TsNonNull
-;
-
-SuperCall
-    : expr=SuperExpression Arguments
 ;
 
 Arguments -> Arguments
@@ -674,9 +615,9 @@ Arguments -> Arguments
 #;
 
 ArgumentList
-    : AssignmentExpression<+In>
+    : AssignmentExpression
     | SpreadElement
-    | ArgumentList ',' AssignmentExpression<+In>
+    | ArgumentList ',' AssignmentExpression
     | ArgumentList ',' SpreadElement
 ;
 
@@ -696,9 +637,6 @@ UpdateExpression -> Expression /* interface */
 # 一元表达式
 UnaryExpression -> Expression /* interface */
     : UpdateExpression
-    | [!StartWithLet] 'delete' UnaryExpression -> UnaryExpression
-    | [!StartWithLet] 'void' UnaryExpression -> UnaryExpression
-    | [!StartWithLet] 'typeof' UnaryExpression -> UnaryExpression
     | [!StartWithLet] '+' UnaryExpression -> UnaryExpression
     | [!StartWithLet] '-' UnaryExpression -> UnaryExpression
     | [!StartWithLet] '~' UnaryExpression -> UnaryExpression
@@ -721,15 +659,12 @@ ArithmeticExpression -> Expression /* interface */
 ;
 
 # 二进制表达式
-BinaryExpression<In> -> Expression /* interface */
+BinaryExpression -> Expression /* interface */
     : ArithmeticExpression
     | left=BinaryExpression '<' right=BinaryExpression -> RelationalExpression
     | left=BinaryExpression '>' right=BinaryExpression -> RelationalExpression
     | left=BinaryExpression '<=' right=BinaryExpression -> RelationalExpression
     | left=BinaryExpression '>=' right=BinaryExpression -> RelationalExpression
-    | left=BinaryExpression 'instanceof' right=BinaryExpression -> RelationalExpression
-    | [In] left=BinaryExpression 'in' right=BinaryExpression -> RelationalExpression
-    | [!NoAs] left=BinaryExpression .noLineBreak 'as' Type -> TsAsExpression
     | left=BinaryExpression '==' right=BinaryExpression -> EqualityExpression
     | left=BinaryExpression '!=' right=BinaryExpression -> EqualityExpression
     | left=BinaryExpression '===' right=BinaryExpression -> EqualityExpression
@@ -742,13 +677,13 @@ BinaryExpression<In> -> Expression /* interface */
 ;
 
 # 条件表达式
-ConditionalExpression<In> -> Expression /* interface */
+ConditionalExpression -> Expression /* interface */
     : BinaryExpression
-    | cond=BinaryExpression '?' then=AssignmentExpression<+In> ':' else=AssignmentExpression -> ConditionalExpression
+    | cond=BinaryExpression '?' then=AssignmentExpression ':' else=AssignmentExpression -> ConditionalExpression
 ;
 
 # 赋值表达式
-AssignmentExpression<In> -> Expression /* interface */
+AssignmentExpression -> Expression /* interface */
     : ConditionalExpression
     | left=LeftHandSideExpression '=' right=AssignmentExpression -> AssignmentExpression
     | left=LeftHandSideExpression AssignmentOperator right=AssignmentExpression -> AssignmentExpression
@@ -760,7 +695,7 @@ AssignmentOperator -> AssignmentOperator
 ;
 
 # 逗号表达式
-CommaExpression<In> -> CommaExpression
+CommaExpression -> CommaExpression
     : left=Expression ',' right=AssignmentExpression
 ;
 
@@ -777,17 +712,15 @@ Statement -> Statement /* interface */:
   | ContinueStatement
   | BreakStatement
   | ReturnStatement
-  | WithStatement
   | LabelledStatement
   | ThrowStatement
   | TryStatement
-  | DebuggerStatement
 ;
 
 Declaration -> Declaration /* interface */:
     HoistableDeclaration
   #| ClassDeclaration
-  | LexicalDeclaration<+In>
+  | LexicalDeclaration
   | TypeAliasDeclaration
 ;
 
@@ -819,20 +752,21 @@ StatementListItem -> StatementListItem /* interface */
     | error ';' -> SyntaxProblem
 ;
 
-LexicalDeclaration<In> -> LexicalDeclaration :
+LexicalDeclaration -> LexicalDeclaration :
     LetOrConst BindingList ';' ;
 
-LetOrConst :
-    'let'
-  | 'const'
+LetOrConst
+    #########: 'let'
+    : 'var'
+    | 'const'
 ;
 
-BindingList<In> :
+BindingList :
     LexicalBinding
   | BindingList ',' LexicalBinding
 ;
 
-LexicalBinding<In> -> LexicalBinding
+LexicalBinding -> LexicalBinding
     #: BindingIdentifier TypeAnnotationopt Initializeropt
     #| BindingPattern TypeAnnotationopt Initializer
     : BindingIdentifier Initializeropt
@@ -840,15 +774,15 @@ LexicalBinding<In> -> LexicalBinding
 ;
 
 VariableStatement -> VariableStatement :
-    'var' VariableDeclarationList<+In> ';'
+    'var' VariableDeclarationList ';'
 ;
 
-VariableDeclarationList<In> :
+VariableDeclarationList :
     VariableDeclaration
   | VariableDeclarationList ',' VariableDeclaration
 ;
 
-VariableDeclaration<In> -> VariableDeclaration
+VariableDeclaration -> VariableDeclaration
     #: BindingIdentifier TypeAnnotationopt Initializeropt
     #| BindingPattern TypeAnnotationopt Initializer
     : BindingIdentifier Initializeropt
@@ -888,12 +822,12 @@ PropertyPattern -> PropertyPattern /* interface */:
 
 ElementPattern -> ElementPattern /* interface */:
     SingleNameBinding
-  | BindingPattern Initializeropt<+In>                -> ElementBinding
+  | BindingPattern Initializeropt                -> ElementBinding
   | SyntaxError
 ;
 
 SingleNameBinding -> SingleNameBinding :
-    BindingIdentifier Initializeropt<+In>
+    BindingIdentifier Initializeropt
 ;
 
 BindingRestElement -> BindingRestElement :
@@ -904,40 +838,32 @@ EmptyStatement -> EmptyStatement :
     ';' .emptyStatement ;
 
 ExpressionStatement -> ExpressionStatement :
-    Expression<+In, +NoFuncClass, +NoAs, +NoObjLiteral, +NoLetSq> ';' ;
+    Expression<+NoFuncClass, +NoAs, +NoObjLiteral, +NoLetSq> ';' ;
 
 %right 'else';
 
 IfStatement -> IfStatement :
-    'if' '(' Expression<+In> ')' then=Statement 'else' else=Statement
-  | 'if' '(' Expression<+In> ')' then=Statement %prec 'else'
+    'if' '(' Expression ')' then=Statement 'else' else=Statement
+  | 'if' '(' Expression ')' then=Statement %prec 'else'
 ;
 
 IterationStatement -> Statement /* interface */:
-    'do' Statement 'while' '(' Expression<+In> ')' ';' .doWhile       -> DoWhileStatement
-  | 'while' '(' Expression<+In> ')' Statement                         -> WhileStatement
-  | 'for' '(' var=Expressionopt<~In> ';' .forSC ForCondition
+  | 'for' '(' Expression ')' Statement                         -> WhileStatement
+  | 'for' '(' var=Expressionopt ';' .forSC ForCondition
           ';' .forSC ForFinalExpression ')' Statement                 -> ForStatement
-  | 'for' '(' var=Expression<~In,+StartWithLet, +NoAs> ';' .forSC ForCondition
+  | 'for' '(' var=Expression<+StartWithLet, +NoAs> ';' .forSC ForCondition
           ';' .forSC ForFinalExpression ')' Statement                 -> ForStatement
-  | 'for' '(' 'var' VariableDeclarationList<~In> ';' .forSC ForCondition
+  | 'for' '(' 'var' VariableDeclarationList ';' .forSC ForCondition
           ';' .forSC ForFinalExpression ')' Statement                 -> ForStatementWithVar
-  | 'for' '(' LetOrConst BindingList<~In> ';' .forSC ForCondition
+  | 'for' '(' LetOrConst BindingList ';' .forSC ForCondition
           ';' .forSC ForFinalExpression ')' Statement                 -> ForStatementWithVar
-  | 'for' '(' var=LeftHandSideExpression
-          'in' object=Expression<+In> ')' Statement                   -> ForInStatement
-  | 'for' '(' var=LeftHandSideExpression<+StartWithLet>
-          'in' object=Expression<+In> ')' Statement                   -> ForInStatement
-  | 'for' '(' 'var' ForBinding
-          'in' object=Expression<+In> ')' Statement                   -> ForInStatementWithVar
-  | 'for' '(' ForDeclaration
-          'in' object=Expression<+In> ')' Statement                   -> ForInStatementWithVar
-  | 'for' '(' var=LeftHandSideExpression
-          'of' iterable=AssignmentExpression<+In> ')' Statement       -> ForOfStatement
-  | 'for' '(' 'var' ForBinding
-          'of' iterable=AssignmentExpression<+In> ')' Statement       -> ForOfStatementWithVar
-  | 'for' '(' ForDeclaration
-          'of' iterable=AssignmentExpression<+In> ')' Statement       -> ForOfStatementWithVar
+  ###| 'for' '(' var=LeftHandSideExpression 'in' object=Expression ')' Statement                   -> ForInStatement
+  ###| 'for' '(' var=LeftHandSideExpression<+StartWithLet> 'in' object=Expression ')' Statement                   -> ForInStatement
+  ###| 'for' '(' 'var' ForBinding 'in' object=Expression ')' Statement                   -> ForInStatementWithVar
+  ###| 'for' '(' ForDeclaration 'in' object=Expression ')' Statement                   -> ForInStatementWithVar
+  ###| 'for' '(' var=LeftHandSideExpression 'of' iterable=AssignmentExpression ')' Statement       -> ForOfStatement
+  ###| 'for' '(' 'var' ForBinding 'of' iterable=AssignmentExpression ')' Statement       -> ForOfStatementWithVar
+  ###| 'for' '(' ForDeclaration 'of' iterable=AssignmentExpression ')' Statement       -> ForOfStatementWithVar
 ;
 
 ForDeclaration :
@@ -950,10 +876,10 @@ ForBinding -> ForBinding :
 ;
 
 ForCondition -> ForCondition :
-    Expressionopt<+In> ;
+    Expressionopt ;
 
 ForFinalExpression -> ForFinalExpression :
-    Expressionopt<+In> ;
+    Expressionopt ;
 
 ContinueStatement -> ContinueStatement :
     'continue' ';'
@@ -967,15 +893,11 @@ BreakStatement -> BreakStatement :
 
 ReturnStatement -> ReturnStatement :
     'return' ';'
-  | 'return' .noLineBreak Expression<+In> ';'
-;
-
-WithStatement -> WithStatement :
-    'with' '(' Expression<+In> ')' Statement
+  | 'return' .noLineBreak Expression ';'
 ;
 
 SwitchStatement -> SwitchStatement :
-    'switch' '(' Expression<+In> ')' CaseBlock
+    'switch' '(' Expression ')' CaseBlock
 ;
 
 CaseBlock -> Block :
@@ -988,7 +910,7 @@ CaseClauses :
 ;
 
 CaseClause -> CaseClause /* interface */:
-    'case' Expression<+In> ':' StatementList?         -> Case
+    'case' Expression ':' StatementList?         -> Case
   | 'default' ':' StatementList?                      -> Default
 ;
 
@@ -1001,7 +923,7 @@ LabelledItem :
 ;
 
 ThrowStatement -> ThrowStatement :
-    'throw' .noLineBreak Expression<+In> ';'
+    'throw' .noLineBreak Expression ';'
 ;
 
 TryStatement -> TryStatement :
@@ -1020,10 +942,6 @@ Finally -> Finally :
 CatchParameter :
     BindingIdentifier
   | BindingPattern
-;
-
-DebuggerStatement -> DebuggerStatement :
-    'debugger' ';'
 ;
 
 # === [ Functions ]
