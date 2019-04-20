@@ -305,6 +305,7 @@ SyntaxError -> SyntaxProblem
 
 IdentifierName
     : Identifier
+    | '_'
 ;
 
 IdentifierNameDecl
@@ -317,10 +318,12 @@ IdentifierNameRef
 
 IdentifierReference -> IdentifierReference
     : Identifier
+    | '_'
 ;
 
 BindingIdentifier -> BindingIdentifier
     : Identifier
+    | '_'
 ;
 
 # 标签标识符
